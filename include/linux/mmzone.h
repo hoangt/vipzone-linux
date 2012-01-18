@@ -1,3 +1,5 @@
+//MODIFIED BY MARK GOTTSCHO
+
 #ifndef _LINUX_MMZONE_H
 #define _LINUX_MMZONE_H
 
@@ -240,12 +242,17 @@ enum zone_type {
 	 */
 	ZONE_DMA32,
 #endif
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	ZONE_DIMM1,
+	ZONE_DIMM2,
+#else
 	/*
 	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
 	 * performed on pages in ZONE_NORMAL if the DMA devices support
 	 * transfers to all addressable memory.
 	 */
 	ZONE_NORMAL,
+#endif
 #ifdef CONFIG_HIGHMEM
 	/*
 	 * A memory area that is only addressable by the kernel through
@@ -271,6 +278,7 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
+//MWG: Revise this?
 #if MAX_NR_ZONES < 2
 #define ZONES_SHIFT 0
 #elif MAX_NR_ZONES <= 2
@@ -737,9 +745,34 @@ static inline int is_highmem_idx(enum zone_type idx)
 #endif
 }
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm1_idx(enum zone_type idx)
+{
+	return (idx == ZONE_DIMM1);
+}
+#endif
+
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm2_idx(enum zone_type idx)
+{
+	return (idx == ZONE_DIMM2);
+}
+#endif
+
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm_idx(enum zone_type idx)
+{
+	return (idx == ZONE_DIMM1 || idx == ZONE_DIMM2);
+}
+#endif
+
 static inline int is_normal_idx(enum zone_type idx)
 {
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#else
 	return (idx == ZONE_NORMAL);
+#endif
 }
 
 /**
@@ -760,9 +793,20 @@ static inline int is_highmem(struct zone *zone)
 #endif
 }
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm(struct zone *zone)
+{	
+	return (zone == zone->zone_pgdat->node_zones + ZONE_DIMM1 || zone == zone->zone_pgdat->node_zones + ZONE_DIMM2);
+}
+#endif
+
 static inline int is_normal(struct zone *zone)
 {
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#else
 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
+#endif
 }
 
 static inline int is_dma32(struct zone *zone)

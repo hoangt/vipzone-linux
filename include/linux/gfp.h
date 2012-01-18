@@ -1,3 +1,5 @@
+//MODIFIED BY MARK GOTTSCHO
+
 #ifndef __LINUX_GFP_H
 #define __LINUX_GFP_H
 
@@ -159,22 +161,32 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
 }
 
+//MWG
+#ifdef CONFIG_ZONE_BYDIMM
+#define OPT_ZONE_NORMAL ZONE_DIMM1
+#else
+#define OPT_ZONE_NORMAL ZONE_NORMAL
+#endif
+
+//MWG
 #ifdef CONFIG_HIGHMEM
 #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
 #else
-#define OPT_ZONE_HIGHMEM ZONE_NORMAL
+#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL
 #endif
 
+//MWG
 #ifdef CONFIG_ZONE_DMA
 #define OPT_ZONE_DMA ZONE_DMA
 #else
-#define OPT_ZONE_DMA ZONE_NORMAL
+#define OPT_ZONE_DMA OPT_ZONE_NORMAL
 #endif
 
+//MWG
 #ifdef CONFIG_ZONE_DMA32
 #define OPT_ZONE_DMA32 ZONE_DMA32
 #else
-#define OPT_ZONE_DMA32 ZONE_NORMAL
+#define OPT_ZONE_DMA32 OPT_ZONE_NORMAL
 #endif
 
 /*
@@ -214,6 +226,19 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 #error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
 #endif
 
+//MWG
+#ifdef CONFIG_ZONE_BYDIMM
+#define GFP_ZONE_TABLE ( \
+	(OPT_ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
+	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
+	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
+	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
+	| (OPT_ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
+	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
+	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
+	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
+)
+#else
 #define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
@@ -224,6 +249,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
 	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
 )
+#endif
 
 /*
  * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32

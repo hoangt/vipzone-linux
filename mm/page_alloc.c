@@ -1,3 +1,5 @@
+//MODIFIED BY MARK GOTTSCHO
+
 /*
  *  linux/mm/page_alloc.c
  *
@@ -156,7 +158,12 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 #ifdef CONFIG_HIGHMEM
 	 32,
 #endif
-	 32,
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	 32, //DIMM1
+	 32, //DIMM2
+#else
+	 32, //NORMAL
+#endif
 };
 
 EXPORT_SYMBOL(totalram_pages);
@@ -168,7 +175,12 @@ static char * const zone_names[MAX_NR_ZONES] = {
 #ifdef CONFIG_ZONE_DMA32
 	 "DMA32",
 #endif
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	 "DIMM1",
+	 "DIMM2",
+#else
 	 "Normal",
+#endif
 #ifdef CONFIG_HIGHMEM
 	 "HighMem",
 #endif
@@ -1860,7 +1872,11 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 		if (order > PAGE_ALLOC_COSTLY_ORDER)
 			goto out;
 		/* The OOM killer does not needlessly kill tasks for lowmem */
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+		if (high_zoneidx < ZONE_DIMM1)
+#else
 		if (high_zoneidx < ZONE_NORMAL)
+#endif
 			goto out;
 		/*
 		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
@@ -2208,7 +2224,11 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+				if (high_zoneidx < ZONE_DIMM1)
+#else
 				if (high_zoneidx < ZONE_NORMAL)
+#endif
 					goto nopage;
 			}
 
@@ -2966,10 +2986,18 @@ static int default_zonelist_order(void)
 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
 			z = &NODE_DATA(nid)->node_zones[zone_type];
 			if (populated_zone(z)) {
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+				if (zone_type < ZONE_DIMM1)
+#else
 				if (zone_type < ZONE_NORMAL)
+#endif
 					low_kmem_size += z->present_pages;
 				total_size += z->present_pages;
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+			} else if (zone_type == ZONE_DIMM1) {
+#else
 			} else if (zone_type == ZONE_NORMAL) {
+#endif
 				/*
 				 * If any node has only lowmem, then node order
 				 * is preferred to allow kernel allocations
@@ -2997,7 +3025,11 @@ static int default_zonelist_order(void)
 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
 			z = &NODE_DATA(nid)->node_zones[zone_type];
 			if (populated_zone(z)) {
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+				if (zone_type < ZONE_DIMM1)
+#else
 				if (zone_type < ZONE_NORMAL)
+#endif
 					low_kmem_size += z->present_pages;
 				total_size += z->present_pages;
 			}
@@ -4864,7 +4896,7 @@ out:
 /* Any regular memory on that node ? */
 static void check_for_regular_memory(pg_data_t *pgdat)
 {
-#ifdef CONFIG_HIGHMEM
+#ifdef CONFIG_HIGHMEM //MWG: This shouldn't happen. If we disable CONFIG_HIGHMEM and enable CONFIG_ZONE_BYDIMM
 	enum zone_type zone_type;
 
 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
