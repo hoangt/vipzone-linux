@@ -1,3 +1,16 @@
+config ZONE_BYDIMM
+	bool "Physical Memory Zoning by DIMM"
+	depends on !HIGHMEM && EXPERIMENTAL
+	help
+	  This will enable an experimental physical page allocation scheme
+	  that divides ZONE_NORMAL into separate zones for each DIMM device
+	  in the system. The goal is to allow control of memory allocations
+	  to reduce power in the presence of DRAM variability.
+	  
+	  If in doubt, select N.
+	  
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
 config SELECT_MEMORY_MODEL
 	def_bool y
 	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
