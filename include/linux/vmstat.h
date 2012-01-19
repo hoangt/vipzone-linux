@@ -163,7 +163,12 @@ static inline unsigned long node_page_state(int node,
 #ifdef CONFIG_HIGHMEM
 		zone_page_state(&zones[ZONE_HIGHMEM], item) +
 #endif
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+		zone_page_state(&zones[ZONE_DIMM1], item) +
+		zone_page_state(&zones[ZONE_DIMM2], item) +
+#else
 		zone_page_state(&zones[ZONE_NORMAL], item) +
+#endif
 		zone_page_state(&zones[ZONE_MOVABLE], item);
 }
 

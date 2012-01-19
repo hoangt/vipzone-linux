@@ -257,6 +257,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * entry starting with bit 0. Bit is set if the combination is not
  * allowed.
  */
+ //MWG: Modify?
 #define GFP_ZONE_BAD ( \
 	1 << (___GFP_DMA | ___GFP_HIGHMEM)				      \
 	| 1 << (___GFP_DMA | ___GFP_DMA32)				      \
@@ -274,7 +275,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	int bit = (__force int) (flags & GFP_ZONEMASK);
 
 	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
-					 ((1 << ZONES_SHIFT) - 1);
+					 ((1 << ZONES_SHIFT) - 1); //MWG: COMPILE WARNING REGARDING LEFT SHIFT
 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
 	return z;
 }

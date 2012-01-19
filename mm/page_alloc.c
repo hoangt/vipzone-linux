@@ -2227,7 +2227,7 @@ rebalance:
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 				if (high_zoneidx < ZONE_DIMM1)
 #else
-				if (high_zoneidx < ZONE_NORMAL)
+				if (high_zoneidx < PG)
 #endif
 					goto nopage;
 			}

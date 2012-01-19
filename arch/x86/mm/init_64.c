@@ -621,7 +621,12 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
 #endif
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/2; //check for correctness
+	max_zone_pfns[ZONE_DIMM2] = max_pfn;
+#else
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
+#endif
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();

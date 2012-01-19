@@ -19,7 +19,14 @@
 #define HIGHMEM_ZONE(xx)
 #endif
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+#define DIMM1_ZONE(xx) xx##_DIMM1,
+#define DIMM2_ZONE(xx) xx##_DIMM2
+#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) HIGHMEM_ZONE(xx) , xx##_MOVABLE
+
+#else
 #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE
+#endif
 
 enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		FOR_ALL_ZONES(PGALLOC),
