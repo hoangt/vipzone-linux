@@ -80,10 +80,15 @@ static inline void vm_events_fold_cpu(int cpu)
 
 #endif /* CONFIG_VM_EVENT_COUNTERS */
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+#define __count_zone_vm_events(item, zone, delta) \
+		__count_vm_events(item##_DIMM1 - ZONE_DIMM1 + \
+		zone_idx(zone), delta)
+#else
 #define __count_zone_vm_events(item, zone, delta) \
 		__count_vm_events(item##_NORMAL - ZONE_NORMAL + \
 		zone_idx(zone), delta)
-
+#endif
 /*
  * Zone based page accounting with per cpu differentials.
  */
