@@ -278,15 +278,14 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-//MWG: Revise this?
 #if MAX_NR_ZONES < 2
 #define ZONES_SHIFT 0
 #elif MAX_NR_ZONES <= 2
 #define ZONES_SHIFT 1
-#elif MAX_NR_ZONES <= 4
+#elif MAX_NR_ZONES <= 7 //MWG: We will allow a shift of only 2 for up to 7 zones, because any extra zones we add are simply extra DIMMs, and the preferred DIMM will always default to DIMM1. Thus gfp_zone() will never resolve to DIMM2...N, and we must choose them explicitly.
 #define ZONES_SHIFT 2
-#elif MAX_NR_ZONES <= 8 //MWG
-#define ZONES_SHIFT 3
+//#elif MAX_NR_ZONES <= 8 //MWG
+//#define ZONES_SHIFT 3
 #else
 #error ZONES_SHIFT -- too many zones configured adjust calculation
 #endif

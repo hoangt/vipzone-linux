@@ -164,31 +164,93 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 //MWG
 #ifdef CONFIG_ZONE_BYDIMM
 #define OPT_ZONE_NORMAL ZONE_DIMM1
-#else
-#define OPT_ZONE_NORMAL ZONE_NORMAL
 #endif
 
-//MWG
 #ifdef CONFIG_HIGHMEM
 #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
 #else
-#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL
+	#ifdef CONFIG_ZONE_BYDIMM
+	#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL
+	#else
+	#define OPT_ZONE_HIGHMEM ZONE_NORMAL
+	#endif
 #endif
 
 //MWG
 #ifdef CONFIG_ZONE_DMA
 #define OPT_ZONE_DMA ZONE_DMA
 #else
-#define OPT_ZONE_DMA OPT_ZONE_NORMAL
+	#ifdef CONFIG_ZONE_BYDIMM
+	#define OPT_ZONE_DMA OPT_ZONE_NORMAL
+	#else
+	#define OPT_ZONE_DMA ZONE_NORMAL
+	#endif
 #endif
 
 //MWG
 #ifdef CONFIG_ZONE_DMA32
 #define OPT_ZONE_DMA32 ZONE_DMA32
 #else
-#define OPT_ZONE_DMA32 OPT_ZONE_NORMAL
+	#ifdef CONFIG_ZONE_BYDIMM
+	#define OPT_ZONE_DMA32 OPT_ZONE_NORMAL
+	#else
+	#define OPT_ZONE_DMA32 ZONE_NORMAL
+	#endif
 #endif
 
+#if 16 * ZONES_SHIFT > BITS_PER_LONG
+#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+#endif
+
+//MWG
+#ifdef CONFIG_ZONE_BYDIMM
+/*
+ * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
+ * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
+ * and there are 16 of them to cover all possible combinations of
+ * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
+ *
+ * The zone fallback order is MOVABLE=>OPT_NORMAL=>DMA32=>DMA.
+ * But GFP_MOVABLE is not only a zone specifier but also an allocation
+ * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
+ * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
+ * 
+ * MWG: Since we no longer have ZONE_NORMAL, we need to use DIMM1/DIMM2. However, for these table computations,
+ * NORMAL will still persist, and will simply understand that it actually resolves to DIMM1/DIMM2.
+ *
+ *       bit       result
+ *       =================
+ *       0x0    => NORMAL (DIMM1/DIMM2)
+ *       0x1    => DMA or NORMAL (DIMM1/DIMM2)
+ *       0x2    => HIGHMEM or NORMAL (DIMM1/DIMM2)
+ *       0x3    => BAD (DMA+HIGHMEM)
+ *       0x4    => DMA32 or DMA or NORMAL (DIMM1/DIMM2)
+ *       0x5    => BAD (DMA+DMA32)
+ *       0x6    => BAD (HIGHMEM+DMA32)
+ *       0x7    => BAD (HIGHMEM+DMA32+DMA)
+ *       0x8    => NORMAL (MOVABLE+0)
+ *       0x9    => DMA or NORMAL (DIMM1/DIMM2) (MOVABLE+DMA) 
+ *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
+ *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
+ *       0xc    => DMA32 (MOVABLE+HIGHMEM+DMA32)
+ *       0xd    => BAD (MOVABLE+DMA32+DMA)
+ *       0xe    => BAD (MOVABLE+DMA32+HIGHMEM)
+ *       0xf    => BAD (MOVABLE+DMA32+HIGHMEM+DMA)
+ *
+ * ZONES_SHIFT must be <= 2 on 32 bit platforms.
+ */
+ //MWG
+#define GFP_ZONE_TABLE ( \
+	(OPT_ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
+	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
+	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
+	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
+	| (OPT_ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
+	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
+	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
+	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
+)
+#else
 /*
  * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
  * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
@@ -221,24 +283,6 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  *
  * ZONES_SHIFT must be <= 2 on 32 bit platforms.
  */
-
-#if 16 * ZONES_SHIFT > BITS_PER_LONG
-#error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
-#endif
-
-//MWG
-#ifdef CONFIG_ZONE_BYDIMM
-#define GFP_ZONE_TABLE ( \
-	(OPT_ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
-	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
-	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
-	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
-	| (OPT_ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
-	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
-	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
-	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
-)
-#else
 #define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
@@ -257,7 +301,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * entry starting with bit 0. Bit is set if the combination is not
  * allowed.
  */
- //MWG: Modify?
+ //MWG: This does not need to be modified.
 #define GFP_ZONE_BAD ( \
 	1 << (___GFP_DMA | ___GFP_HIGHMEM)				      \
 	| 1 << (___GFP_DMA | ___GFP_DMA32)				      \
