@@ -212,6 +212,11 @@ struct per_cpu_pageset {
 
 #endif /* !__GENERATING_BOUNDS.H */
 
+//MWG: Make this a config option!
+#ifdef CONFIG_ZONE_BYDIMM
+#define NR_DIMMS 2
+#endif
+
 enum zone_type {
 #ifdef CONFIG_ZONE_DMA
 	/*
@@ -242,9 +247,18 @@ enum zone_type {
 	 */
 	ZONE_DMA32,
 #endif
+
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	ZONE_DIMM1,
-	ZONE_DIMM2,
+	#if NR_DIMMS >= 2
+		ZONE_DIMM2,
+	#endif
+	#if NR_DIMMS >= 3
+		ZONE_DIMM3,
+	#endif
+	#if NR_DIMMS == 4
+		ZONE_DIMM4,
+	#endif
 #else
 	/*
 	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
@@ -278,16 +292,26 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-#if MAX_NR_ZONES < 2
-#define ZONES_SHIFT 0
-#elif MAX_NR_ZONES <= 2
-#define ZONES_SHIFT 1
-#elif MAX_NR_ZONES <= 7 //MWG: We will allow a shift of only 2 for up to 7 zones, because any extra zones we add are simply extra DIMMs, and the preferred DIMM will always default to DIMM1. Thus gfp_zone() will never resolve to DIMM2...N, and we must choose them explicitly.
-#define ZONES_SHIFT 2
-//#elif MAX_NR_ZONES <= 8 //MWG
-//#define ZONES_SHIFT 3
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	#if MAX_NR_ZONES - (NR_DIMMS-1) < 2 // We subtract NR_DIMMS-1 such that the extra DIMM enumerations are invisible to all the gfp_zone functionality, etc.
+	#define ZONES_SHIFT 0
+	#elif MAX_NR_ZONES - (NR_DIMMS-1) <= 2
+	#define ZONES_SHIFT 1
+	#elif MAX_NR_ZONES - (NR_DIMMS-1) <= 4
+	#define ZONES_SHIFT 2
+	#else
+	#error ZONES_SHIFT -- too many zones configured adjust calculation
+	#endif
 #else
-#error ZONES_SHIFT -- too many zones configured adjust calculation
+	#if MAX_NR_ZONES < 2
+	#define ZONES_SHIFT 0
+	#elif MAX_NR_ZONES <= 2
+	#define ZONES_SHIFT 1
+	#elif MAX_NR_ZONES <= 4
+	#define ZONES_SHIFT 2
+	#else
+	#error ZONES_SHIFT -- too many zones configured adjust calculation
+	#endif
 #endif
 
 struct zone_reclaim_stat {

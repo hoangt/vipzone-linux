@@ -164,38 +164,26 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 //MWG
 #ifdef CONFIG_ZONE_BYDIMM
 #define OPT_ZONE_NORMAL ZONE_DIMM1
+#else
+#define OPT_ZONE_NORMAL ZONE_NORMAL
 #endif
 
 #ifdef CONFIG_HIGHMEM
 #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
 #else
-	#ifdef CONFIG_ZONE_BYDIMM
-	#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL
-	#else
-	#define OPT_ZONE_HIGHMEM ZONE_NORMAL
-	#endif
+#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL //MWG
 #endif
 
-//MWG
 #ifdef CONFIG_ZONE_DMA
 #define OPT_ZONE_DMA ZONE_DMA
 #else
-	#ifdef CONFIG_ZONE_BYDIMM
-	#define OPT_ZONE_DMA OPT_ZONE_NORMAL
-	#else
-	#define OPT_ZONE_DMA ZONE_NORMAL
-	#endif
+#define OPT_ZONE_DMA OPT_ZONE_NORMAL //MWG
 #endif
 
-//MWG
 #ifdef CONFIG_ZONE_DMA32
 #define OPT_ZONE_DMA32 ZONE_DMA32
 #else
-	#ifdef CONFIG_ZONE_BYDIMM
-	#define OPT_ZONE_DMA32 OPT_ZONE_NORMAL
-	#else
-	#define OPT_ZONE_DMA32 ZONE_NORMAL
-	#endif
+#define OPT_ZONE_DMA32 OPT_ZONE_NORMAL //MWG
 #endif
 
 #if 16 * ZONES_SHIFT > BITS_PER_LONG
@@ -215,21 +203,23 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
  * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
  * 
- * MWG: Since we no longer have ZONE_NORMAL, we need to use DIMM1/DIMM2. However, for these table computations,
- * NORMAL will still persist, and will simply understand that it actually resolves to DIMM1/DIMM2.
+ * MWG: Since we no longer have ZONE_NORMAL, we need to resolve to individual DIMM zones. However, for these table computations,
+ * NORMAL will still persist, and will simply understand that it actually resolves to DIMM 1...N. This way, we avoid mucking up
+ * the nice GFP_ZONE_TABLE computations. Meanwhile, everyone else does not need to know the difference between DIMM zones. They
+ * can continue to use the ZONE_NORMAL GFP allocation flags.
  *
  *       bit       result
  *       =================
- *       0x0    => NORMAL (DIMM1/DIMM2)
- *       0x1    => DMA or NORMAL (DIMM1/DIMM2)
- *       0x2    => HIGHMEM or NORMAL (DIMM1/DIMM2)
+ *       0x0    => NORMAL (DIMM 1...DIMM N)
+ *       0x1    => DMA or NORMAL (DIMM 1...DIMM N)
+ *       0x2    => HIGHMEM or NORMAL (DIMM 1...DIMM N)
  *       0x3    => BAD (DMA+HIGHMEM)
- *       0x4    => DMA32 or DMA or NORMAL (DIMM1/DIMM2)
+ *       0x4    => DMA32 or DMA or NORMAL (DIMM 1...DIMM N)
  *       0x5    => BAD (DMA+DMA32)
  *       0x6    => BAD (HIGHMEM+DMA32)
  *       0x7    => BAD (HIGHMEM+DMA32+DMA)
- *       0x8    => NORMAL (MOVABLE+0)
- *       0x9    => DMA or NORMAL (DIMM1/DIMM2) (MOVABLE+DMA) 
+ *       0x8    => NORMAL (MOVABLE+0) (DIMM 1...DIMM N)
+ *       0x9    => DMA or NORMAL (DIMM 1...DIMM N) (MOVABLE+DMA) 
  *       0xa    => MOVABLE (Movable is valid only if HIGHMEM is set too)
  *       0xb    => BAD (MOVABLE+HIGHMEM+DMA)
  *       0xc    => DMA32 (MOVABLE+HIGHMEM+DMA32)
@@ -319,7 +309,12 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	int bit = (__force int) (flags & GFP_ZONEMASK);
 
 	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
-					 ((1 << ZONES_SHIFT) - 1); //MWG: COMPILE WARNING REGARDING LEFT SHIFT
+					 ((1 << ZONES_SHIFT) - 1);
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	if (z == OPT_ZONE_NORMAL) // If we got OPT_ZONE_NORMAL (ZONE_DIMM1) then we want to return the idx of the highest DIMM instead. By doing this manually, we avoid having to account for additional zone combinations with extra DIMMs, and instead lump them all together as one mega "ZONE_NORMAL".
+		z += NR_DIMMS-1;
+#endif
+		
 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
 	return z;
 }

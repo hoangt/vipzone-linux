@@ -2318,7 +2318,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	put_mems_allowed();
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
-	printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone idx was %d.\n", order, preferred_zone->name, high_zoneidx); //MWG
+//	printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone idx was %d.\n", order, preferred_zone->name, high_zoneidx); //MWG
 	return page;
 }
 EXPORT_SYMBOL(__alloc_pages_nodemask);

@@ -622,11 +622,29 @@ void __init paging_init(void)
 #endif
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/2; //check for correctness
+	#if NR_DIMMS == 1
+	max_zone_pfns[ZONE_DIMM1] = max_pfn;
+	#elif NR_DIMMS == 2
+	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/2+MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_DIMM2] = max_pfn;
+	#elif NR_ZONES == 3
+	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/3+MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_DIMM2] = 2*(max_pfn-MAX_DMA32_PFN)/3+MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_DIMM3] = max_pfn;
+	#elif NR_ZONES == 4
+	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/4+MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_DIMM2] = 2*(max_pfn-MAX_DMA32_PFN)/4+MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_DIMM3] = 3*(max_pfn-MAX_DMA32_PFN)/4+MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_DIMM4] = max_pfn;
+	#else
+	#error Too many DIMMs...MWG
+	#endif
 #else
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 #endif
+	//MWG
+	for (unsigned long i = 0; i < MAX_NR_ZONES; i++)
+		printk(KERN_WARNING "<MWG> Max pfn for zone %d: %d\n" i, max_zone_pfns[i]);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
