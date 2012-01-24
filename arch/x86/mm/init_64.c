@@ -615,6 +615,7 @@ void __init initmem_init(void)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	int i; //MWG
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 #ifdef CONFIG_ZONE_DMA
@@ -627,11 +628,11 @@ void __init paging_init(void)
 	#elif NR_DIMMS == 2
 	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/2+MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_DIMM2] = max_pfn;
-	#elif NR_ZONES == 3
+	#elif NR_DIMMS == 3
 	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/3+MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_DIMM2] = 2*(max_pfn-MAX_DMA32_PFN)/3+MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_DIMM3] = max_pfn;
-	#elif NR_ZONES == 4
+	#elif NR_DIMMS == 4
 	max_zone_pfns[ZONE_DIMM1] = (max_pfn-MAX_DMA32_PFN)/4+MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_DIMM2] = 2*(max_pfn-MAX_DMA32_PFN)/4+MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_DIMM3] = 3*(max_pfn-MAX_DMA32_PFN)/4+MAX_DMA32_PFN;
@@ -643,8 +644,8 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 #endif
 	//MWG
-	for (unsigned long i = 0; i < MAX_NR_ZONES; i++)
-		printk(KERN_WARNING "<MWG> Max pfn for zone %d: %d\n" i, max_zone_pfns[i]);
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		printk(KERN_WARNING "<MWG> Max pfn for zone %d: %u\n", i, max_zone_pfns[i]);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
