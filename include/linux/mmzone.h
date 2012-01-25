@@ -218,36 +218,6 @@ struct per_cpu_pageset {
 #endif
 
 enum zone_type {
-#ifdef CONFIG_ZONE_DMA
-	/*
-	 * ZONE_DMA is used when there are devices that are not able
-	 * to do DMA to all of addressable memory (ZONE_NORMAL). Then we
-	 * carve out the portion of memory that is needed for these devices.
-	 * The range is arch specific.
-	 *
-	 * Some examples
-	 *
-	 * Architecture		Limit
-	 * ---------------------------
-	 * parisc, ia64, sparc	<4G
-	 * s390			<2G
-	 * arm			Various
-	 * alpha		Unlimited or 0-16MB.
-	 *
-	 * i386, x86_64 and multiple other arches
-	 * 			<16M.
-	 */
-	ZONE_DMA,
-#endif
-#ifdef CONFIG_ZONE_DMA32
-	/*
-	 * x86_64 needs two ZONE_DMAs because it supports devices that are
-	 * only able to do DMA to the lower 16M but also 32 bit devices that
-	 * can only do DMA areas below 4G.
-	 */
-	ZONE_DMA32,
-#endif
-
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	ZONE_DIMM1,
 	#if NR_DIMMS >= 2
@@ -260,23 +230,53 @@ enum zone_type {
 		ZONE_DIMM4,
 	#endif
 #else
-	/*
-	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
-	 * performed on pages in ZONE_NORMAL if the DMA devices support
-	 * transfers to all addressable memory.
-	 */
-	ZONE_NORMAL,
-#endif
-#ifdef CONFIG_HIGHMEM
-	/*
-	 * A memory area that is only addressable by the kernel through
-	 * mapping portions into its own address space. This is for example
-	 * used by i386 to allow the kernel to address the memory beyond
-	 * 900MB. The kernel will set up special mappings (page
-	 * table entries on i386) for each page that the kernel needs to
-	 * access.
-	 */
-	ZONE_HIGHMEM,
+	#ifdef CONFIG_ZONE_DMA
+		/*
+		 * ZONE_DMA is used when there are devices that are not able
+		 * to do DMA to all of addressable memory (ZONE_NORMAL). Then we
+		 * carve out the portion of memory that is needed for these devices.
+		 * The range is arch specific.
+		 *
+		 * Some examples
+		 *
+		 * Architecture		Limit
+		 * ---------------------------
+		 * parisc, ia64, sparc	<4G
+		 * s390			<2G
+		 * arm			Various
+		 * alpha		Unlimited or 0-16MB.
+		 *
+		 * i386, x86_64 and multiple other arches
+		 * 			<16M.
+		 */
+		ZONE_DMA,
+	#endif
+	#ifdef CONFIG_ZONE_DMA32
+		/*
+		 * x86_64 needs two ZONE_DMAs because it supports devices that are
+		 * only able to do DMA to the lower 16M but also 32 bit devices that
+		 * can only do DMA areas below 4G.
+		 */
+		ZONE_DMA32,
+	#endif
+	
+		/*
+		 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
+		 * performed on pages in ZONE_NORMAL if the DMA devices support
+		 * transfers to all addressable memory.
+		 */
+		ZONE_NORMAL,
+	#ifdef CONFIG_HIGHMEM
+		/*
+		 * A memory area that is only addressable by the kernel through
+		 * mapping portions into its own address space. This is for example
+		 * used by i386 to allow the kernel to address the memory beyond
+		 * 900MB. The kernel will set up special mappings (page
+		 * table entries on i386) for each page that the kernel needs to
+		 * access.
+		 */
+		ZONE_HIGHMEM,
+	#endif
 #endif
 	ZONE_MOVABLE,
 	__MAX_NR_ZONES
@@ -753,7 +753,9 @@ extern int movable_zone;
 
 static inline int zone_movable_is_highmem(void)
 {
-#if defined(CONFIG_HIGHMEM) && defined(CONFIG_ARCH_POPULATES_NODE_MAP)
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#elif defined(CONFIG_HIGHMEM) && defined(CONFIG_ARCH_POPULATES_NODE_MAP)
 	return movable_zone == ZONE_HIGHMEM;
 #else
 	return 0;
@@ -762,7 +764,9 @@ static inline int zone_movable_is_highmem(void)
 
 static inline int is_highmem_idx(enum zone_type idx)
 {
-#ifdef CONFIG_HIGHMEM
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#elif defined(CONFIG_HIGHMEM)
 	return (idx == ZONE_HIGHMEM ||
 		(idx == ZONE_MOVABLE && zone_movable_is_highmem()));
 #else
@@ -771,23 +775,9 @@ static inline int is_highmem_idx(enum zone_type idx)
 }
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-static inline int is_dimm1_idx(enum zone_type idx)
-{
-	return (idx == ZONE_DIMM1);
-}
-#endif
-
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-static inline int is_dimm2_idx(enum zone_type idx)
-{
-	return (idx == ZONE_DIMM2);
-}
-#endif
-
-#ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm_idx(enum zone_type idx)
 {
-	return (idx == ZONE_DIMM1 || idx == ZONE_DIMM2);
+	return (idx >= ZONE_DIMM1 && idx <= ZONE_DIMM1 + NR_DIMMS - 1);
 }
 #endif
 
@@ -808,7 +798,9 @@ static inline int is_normal_idx(enum zone_type idx)
  */
 static inline int is_highmem(struct zone *zone)
 {
-#ifdef CONFIG_HIGHMEM
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#elif defined(CONFIG_HIGHMEM)
 	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
 	return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
 	       (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
@@ -821,7 +813,7 @@ static inline int is_highmem(struct zone *zone)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm(struct zone *zone)
 {	
-	return (zone == zone->zone_pgdat->node_zones + ZONE_DIMM1 || zone == zone->zone_pgdat->node_zones + ZONE_DIMM2);
+	return (zone >= zone->zone_pgdat->node_zones + ZONE_DIMM1 && zone <= zone->zone_pgdat->node_zones + ZONE_DIMM1 + NR_DIMMS - 1);
 }
 #endif
 
@@ -836,7 +828,9 @@ static inline int is_normal(struct zone *zone)
 
 static inline int is_dma32(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_DMA32
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#elif defined(CONFIG_ZONE_DMA32)
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
 #else
 	return 0;
@@ -845,7 +839,9 @@ static inline int is_dma32(struct zone *zone)
 
 static inline int is_dma(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_DMA
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	return 0;
+#elif defined(CONFIG_ZONE_DMA)
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
 #else
 	return 0;
