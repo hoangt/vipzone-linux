@@ -149,19 +149,30 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  * don't need any ZONE_NORMAL reservation
  */
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
-#ifdef CONFIG_ZONE_DMA
-	 256,
-#endif
-#ifdef CONFIG_ZONE_DMA32
-	 256,
-#endif
-#ifdef CONFIG_HIGHMEM
-	 32,
-#endif
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	 32, //DIMM1
+	#if NR_DIMMS > 1
 	 32, //DIMM2
+	#endif
+	#if NR_DIMMS > 2
+	 32, //DIMM3
+	#endif
+	#if NR_DIMMS > 3
+	 32, //DIMM4
+	#endif
+	#if NR_DIMMS > 4
+	#error MWG...Too many DIMMs configured.
+	#endif
 #else
+	#ifdef CONFIG_ZONE_DMA
+	 256,
+	#endif
+	#ifdef CONFIG_ZONE_DMA32
+	 256,
+	#endif
+	#ifdef CONFIG_HIGHMEM
+	 32,
+	#endif
 	 32, //NORMAL
 #endif
 };
@@ -169,22 +180,37 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 EXPORT_SYMBOL(totalram_pages);
 
 static char * const zone_names[MAX_NR_ZONES] = {
-#ifdef CONFIG_ZONE_DMA
-	 "DMA",
-#endif
-#ifdef CONFIG_ZONE_DMA32
-	 "DMA32",
-#endif
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	 "DIMM1",
+	#if NR_DIMMS > 1
 	 "DIMM2",
+	#endif
+	#if NR_DIMMS > 2
+	 "DIMM3",
+	#endif
+	#if NR_DIMMS > 3
+	 "DIMM4",
+	#endif
+	#if NR_DIMMS > 4
+	#error MWG...Too many DIMMs configured.
+	#endif
+	
 #else
-	 "Normal",
+	#ifdef CONFIG_ZONE_DMA
+	"DMA",
+	#endif
+	
+	#ifdef CONFIG_ZONE_DMA32
+	"DMA32",
+	#endif
+
+	"Normal",
+	
+	#ifdef CONFIG_HIGHMEM
+	"HighMem",
+	#endif
 #endif
-#ifdef CONFIG_HIGHMEM
-	 "HighMem",
-#endif
-	 "Movable",
+	"Movable", //Always there
 };
 
 int min_free_kbytes = 1024;

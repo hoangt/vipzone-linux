@@ -638,9 +638,9 @@ void __init paging_init(void)
 	#error Too many DIMMs...MWG
 	#endif
 #else
-#ifdef CONFIG_ZONE_DMA
+	#ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
-#endif
+	#endif
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 #endif
