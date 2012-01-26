@@ -781,6 +781,46 @@ static inline int is_dimm_idx(enum zone_type idx)
 }
 #endif
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm1_idx(enum zone_type idx)
+{
+	return (idx == ZONE_DIMM1);
+}
+#endif
+
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm2_idx(enum zone_type idx)
+{
+#if NR_DIMMS > 1
+	return (idx == ZONE_DIMM2);
+#else
+	return 0;
+#endif
+}
+#endif
+
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm3_idx(enum zone_type idx)
+{
+#if NR_DIMMS > 2
+	return (idx == ZONE_DIMM3);
+#else
+	return 0;
+#endif
+}
+#endif
+
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline int is_dimm4_idx(enum zone_type idx)
+{
+#if NR_DIMMS > 3
+	return (idx == ZONE_DIMM4);
+#else
+	return 0;
+#endif
+}
+#endif
+
 static inline int is_normal_idx(enum zone_type idx)
 {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
