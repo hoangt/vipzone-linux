@@ -2307,7 +2307,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	unsigned long iter = 0;
+	static unsigned long iter = 0;
 #endif
 
 	gfp_mask &= gfp_allowed_mask;
@@ -2350,15 +2350,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	if (iter % 5000 == 0) { //Only print every 5,000th allocation.
+	if (iter % 50000 == 0) {
 		if (is_dimm1_idx(high_zoneidx))
-			printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone was DIMM1.\n", order, preferred_zone->name);
+			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM1.\n", preferred_zone->name);
 		else if (is_dimm2_idx(high_zoneidx))
-			printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone was DIMM2.\n", order, preferred_zone->name);
+			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM2.\n", preferred_zone->name);
 		else if (is_dimm3_idx(high_zoneidx))
-			printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone was DIMM3.\n", order, preferred_zone->name);
+			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM3.\n", preferred_zone->name);
 		else if (is_dimm4_idx(high_zoneidx))
-			printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone was DIMM4.\n", order, preferred_zone->name);
+			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM4.\n", preferred_zone->name);
 	}
 	if (!is_dimm_idx(high_zoneidx))
 		printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone was ?????.\n", order, preferred_zone->name);
