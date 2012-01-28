@@ -1772,6 +1772,114 @@ this_zone_full:
 	return page;
 }
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+/*
+ * get_page_from_freelist goes through the zonelist trying to allocate
+ * a page.
+ * MWG: Slightly modified version of the function for reporting the actual allocated zone.
+ */
+static struct page *
+get_page_from_freelist_mwgstat(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
+		struct zone *preferred_zone, int migratetype, struct zone **finalZone)
+{
+	struct zoneref *z;
+	struct page *page = NULL;
+	int classzone_idx;
+	struct zone *zone;
+	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+	int zlc_active = 0;		/* set if using zonelist_cache */
+	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+
+	classzone_idx = zone_idx(preferred_zone);
+zonelist_scan:
+	/*
+	 * Scan zonelist, looking for a zone with enough free.
+	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+	 */
+	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+						high_zoneidx, nodemask) {
+		if (NUMA_BUILD && zlc_active &&
+			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+				continue;
+		if ((alloc_flags & ALLOC_CPUSET) &&
+			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+				continue;
+
+		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+			unsigned long mark;
+			int ret;
+
+			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+			if (zone_watermark_ok(zone, order, mark,
+				    classzone_idx, alloc_flags))
+				goto try_this_zone;
+
+			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
+				/*
+				 * we do zlc_setup if there are multiple nodes
+				 * and before considering the first zone allowed
+				 * by the cpuset.
+				 */
+				allowednodes = zlc_setup(zonelist, alloc_flags);
+				zlc_active = 1;
+				did_zlc_setup = 1;
+			}
+
+			if (zone_reclaim_mode == 0)
+				goto this_zone_full;
+
+			/*
+			 * As we may have just activated ZLC, check if the first
+			 * eligible zone has failed zone_reclaim recently.
+			 */
+			if (NUMA_BUILD && zlc_active &&
+				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+				continue;
+
+			ret = zone_reclaim(zone, gfp_mask, order);
+			switch (ret) {
+			case ZONE_RECLAIM_NOSCAN:
+				/* did not scan */
+				continue;
+			case ZONE_RECLAIM_FULL:
+				/* scanned but unreclaimable */
+				continue;
+			default:
+				/* did we reclaim enough */
+				if (!zone_watermark_ok(zone, order, mark,
+						classzone_idx, alloc_flags))
+					goto this_zone_full;
+			}
+		}
+
+try_this_zone:
+		page = buffered_rmqueue(preferred_zone, zone, order,
+						gfp_mask, migratetype);
+		if (page)
+			break;
+this_zone_full:
+		if (NUMA_BUILD)
+			zlc_mark_zone_full(zonelist, z);
+	}
+
+	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
+		/* Disable zlc cache for second zonelist scan */
+		zlc_active = 0;
+		goto zonelist_scan;
+	}
+	
+	if (finalZone) //MWG: check for NULL
+		*finalZone = zone;
+	else
+		*finalZone = NULL;
+	
+	return page;
+}
+
+#endif
+
 /*
  * Large machines with many possible nodes should not always dump per-node
  * meminfo in irq context.
@@ -2303,6 +2411,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	struct zone *preferred_zone;
+	struct zone *finalZone; //MWG
 	struct page *page;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	
@@ -2338,9 +2447,16 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	}
 
 	/* First allocation attempt */
+	
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG
+			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
+			preferred_zone, migratetype, &finalZone);
+#else
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype);
+#endif
 	if (unlikely(!page))
 		page = __alloc_pages_slowpath(gfp_mask, order,
 				zonelist, high_zoneidx, nodemask,
@@ -2351,17 +2467,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	if (iter % 50000 == 0) {
-		if (is_dimm1_idx(high_zoneidx))
-			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM1.\n", preferred_zone->name);
-		else if (is_dimm2_idx(high_zoneidx))
-			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM2.\n", preferred_zone->name);
-		else if (is_dimm3_idx(high_zoneidx))
-			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM3.\n", preferred_zone->name);
-		else if (is_dimm4_idx(high_zoneidx))
-			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and high zone was DIMM4.\n", preferred_zone->name);
+		if (finalZone)
+			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
+		else
+			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was NULL (failed???).\n", preferred_zone->name);
+		
 	}
-	if (!is_dimm_idx(high_zoneidx))
-		printk(KERN_WARNING " <MWG> Allocated order %d pages, preferred zone was %s, high zone was ?????.\n", order, preferred_zone->name);
 	
 	iter++;
 #endif
