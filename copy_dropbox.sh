@@ -1,11 +1,11 @@
-echo '>>>>> Cleaning last build...'
+#echo '>>>>> Cleaning last build...'
 #make clean
 echo '>>>>> Setting up atombuild dir...'
 rm -rf ~/Dropbox/mwg_research/atombuild
 mkdir ~/Dropbox/mwg_research/atombuild
-echo '>>>>> Compiling new  kernel...'
-make -j4 > /dev/null
-echo '>>>>> Copying finished build...'
+#echo '>>>>> Compiling new  kernel...'
+#make -j4 > /dev/null
+echo '>>>>> Copying build...'
 cp arch/x86_64/boot/bzImage ~/Dropbox/mwg_research/atombuild/
 cp System.map ~/Dropbox/mwg_research/atombuild/
 cp .config ~/Dropbox/mwg_research/atombuild/

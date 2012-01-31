@@ -1,5 +1,5 @@
-echo '>>>>> Cleaning last build...'
-make clean
+#echo '>>>>> Cleaning last build...'
+#make clean
 echo '>>>>> Compiling new  kernel...'
 make -j4 > /dev/null
 echo '>>>>> Installing kernel...'
