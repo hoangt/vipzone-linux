@@ -14,6 +14,7 @@ make modules_install INSTALL_MOD_PATH='/home/mark/kerneldev'
 rm ~/kerneldev/lib/modules/3.2.1-MWG+/build
 rm ~/kerneldev/lib/modules/3.2.1-MWG+/source
 cp -R ~/kerneldev/lib/modules/ ~/Dropbox/mwg_research/atombuild/
+rm -rf ~/kerneldev/lib
 echo '>>>>> Copying install script...'
 cp atom_install.sh ~/Dropbox/mwg_research/atombuild/
 echo '>>>>> Done!'
