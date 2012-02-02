@@ -283,10 +283,14 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 
 	do {
 		seq = zone_span_seqbegin(zone);
-		if (pfn >= zone->zone_start_pfn + zone->spanned_pages)
+		if (pfn >= zone->zone_start_pfn + zone->spanned_pages) {
+			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is greater than the max pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
 			ret = 1;
-		else if (pfn < zone->zone_start_pfn)
+		}
+		else if (pfn < zone->zone_start_pfn) {
+			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is less than the min pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
 			ret = 1;
+		}
 	} while (zone_span_seqretry(zone, seq));
 
 	return ret;
@@ -294,11 +298,15 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 
 static int page_is_consistent(struct zone *zone, struct page *page)
 {
-	if (!pfn_valid_within(page_to_pfn(page)))
+	if (!pfn_valid_within(page_to_pfn(page))) {
+		printk(KERN_EMERG "<MWG> page_is_consistent(): This page's pfn is not valid within this memory node! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
 		return 0;
-	if (zone != page_zone(page))
+	}
+	if (zone != page_zone(page)) {
+		printk(KERN_EMERG "<MWG> page_is_consistent(): This zone does not match page_zone(page)! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
 		return 0;
-
+	}
+	
 	return 1;
 }
 /*
@@ -310,7 +318,7 @@ static int bad_range(struct zone *zone, struct page *page)
 		return 1;
 	if (!page_is_consistent(zone, page))
 		return 1;
-
+		
 	return 0;
 }
 #else
@@ -783,7 +791,11 @@ static inline void expand(struct zone *zone, struct page *page,
 		area--;
 		high--;
 		size >>= 1;
-		VM_BUG_ON(bad_range(zone, &page[size]));
+		//VM_BUG_ON(bad_range(zone, &page[size]));
+		if (bad_range(zone, &page[size])) { //MWG
+			printk(KERN_EMERG "<MWG> bad_range() returned 1! This would normally cause VM_BUG_ON() and an oops! Infinite spinloop incoming.\n");
+			while(1); //Don't continue executing.
+		}
 		list_add(&page[size].lru, &area->free_list[migratetype]);
 		area->nr_free++;
 		set_page_order(&page[size], high);

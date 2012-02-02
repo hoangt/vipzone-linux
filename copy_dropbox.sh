@@ -1,10 +1,6 @@
-#echo '>>>>> Cleaning last build...'
-#make clean
 echo '>>>>> Setting up atombuild dir...'
 rm -rf ~/Dropbox/mwg_research/atombuild
 mkdir ~/Dropbox/mwg_research/atombuild
-#echo '>>>>> Compiling new  kernel...'
-#make -j4 > /dev/null
 echo '>>>>> Copying build...'
 cp arch/x86_64/boot/bzImage ~/Dropbox/mwg_research/atombuild/
 cp System.map ~/Dropbox/mwg_research/atombuild/
@@ -17,4 +13,6 @@ cp -R ~/kerneldev/lib/modules/ ~/Dropbox/mwg_research/atombuild/
 rm -rf ~/kerneldev/lib
 echo '>>>>> Copying install script...'
 cp atom_install.sh ~/Dropbox/mwg_research/atombuild/
+echo '>>>>> Copying memallocator test program...'
+cp ../memallocator/memallocator ~/Dropbox/mwg_research/atombuild/
 echo '>>>>> Done!'
