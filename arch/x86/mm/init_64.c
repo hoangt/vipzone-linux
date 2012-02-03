@@ -647,7 +647,7 @@ void __init paging_init(void)
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG debugging
 	for (i = 0; i < MAX_NR_ZONES; i++)
-		printk(KERN_WARNING "<MWG> Max pfn for zone %d: %ul\n", i, max_zone_pfns[i]);
+		printk(KERN_DEBUG "<MWG> Max pfn for zone %d: %lu\n", i, max_zone_pfns[i]);
 #endif
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();

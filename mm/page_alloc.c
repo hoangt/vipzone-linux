@@ -150,15 +150,15 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  */
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	 32, //DIMM1
+	 256, //DIMM1
 	#if NR_DIMMS > 1
-	 32, //DIMM2
+	 256, //DIMM2
 	#endif
 	#if NR_DIMMS > 2
-	 32, //DIMM3
+	 256, //DIMM3
 	#endif
 	#if NR_DIMMS > 3
-	 32, //DIMM4
+	 256, //DIMM4
 	#endif
 	#if NR_DIMMS > 4
 	#error MWG...Too many DIMMs configured.
@@ -284,11 +284,11 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 	do {
 		seq = zone_span_seqbegin(zone);
 		if (pfn >= zone->zone_start_pfn + zone->spanned_pages) {
-			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is greater than the max pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
+			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is greater than the max pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
 			ret = 1;
 		}
 		else if (pfn < zone->zone_start_pfn) {
-			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is less than the min pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
+			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is less than the min pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
 			ret = 1;
 		}
 	} while (zone_span_seqretry(zone, seq));
@@ -299,11 +299,11 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 static int page_is_consistent(struct zone *zone, struct page *page)
 {
 	if (!pfn_valid_within(page_to_pfn(page))) {
-		printk(KERN_EMERG "<MWG> page_is_consistent(): This page's pfn is not valid within this memory node! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
+		printk(KERN_EMERG "<MWG> page_is_consistent(): This page's pfn is not valid within this memory node! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
 		return 0;
 	}
 	if (zone != page_zone(page)) {
-		printk(KERN_EMERG "<MWG> page_is_consistent(): This zone does not match page_zone(page)! Panic imminent!\n<MWG>zone == %s, pfn == %d\n", zone->name, page_to_pfn(page)); //MWG
+		printk(KERN_EMERG "<MWG> page_is_consistent(): This zone does not match page_zone(page)! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
 		return 0;
 	}
 	
@@ -555,7 +555,7 @@ static inline void __free_one_page(struct page *page,
 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
 
 	VM_BUG_ON(page_idx & ((1 << order) - 1));
-	VM_BUG_ON(bad_range(zone, page));
+	//VM_BUG_ON(bad_range(zone, page)); //MWG
 
 	while (order < MAX_ORDER-1) {
 		buddy_idx = __find_buddy_index(page_idx, order);
@@ -786,16 +786,12 @@ static inline void expand(struct zone *zone, struct page *page,
 	int migratetype)
 {
 	unsigned long size = 1 << high;
-
+	
 	while (high > low) {
 		area--;
 		high--;
 		size >>= 1;
-		//VM_BUG_ON(bad_range(zone, &page[size]));
-		if (bad_range(zone, &page[size])) { //MWG
-			printk(KERN_EMERG "<MWG> bad_range() returned 1! This would normally cause VM_BUG_ON() and an oops! Infinite spinloop incoming.\n");
-			while(1); //Don't continue executing.
-		}
+		//VM_BUG_ON(bad_range(zone, &page[size])); //MWG
 		list_add(&page[size].lru, &area->free_list[migratetype]);
 		area->nr_free++;
 		set_page_order(&page[size], high);
@@ -866,6 +862,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
 		list_del(&page->lru);
 		rmv_page_order(page);
 		area->nr_free--;
+		
 		expand(zone, page, order, current_order, area, migratetype);
 		return page;
 	}
@@ -1022,7 +1019,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 			if (current_order >= pageblock_order)
 				change_pageblock_range(page, current_order,
 							start_migratetype);
-
+			
 			expand(zone, page, order, current_order, area, migratetype);
 
 			trace_mm_page_alloc_extfrag(page, order, current_order,
@@ -1396,7 +1393,7 @@ again:
 	zone_statistics(preferred_zone, zone, gfp_flags);
 	local_irq_restore(flags);
 
-	VM_BUG_ON(bad_range(zone, page));
+	//VM_BUG_ON(bad_range(zone, page));
 	if (prep_new_page(page, order, gfp_flags))
 		goto again;
 	return page;
@@ -2452,7 +2449,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,
 				nodemask ? : &cpuset_current_mems_allowed,
-				&preferred_zone);
+				&preferred_zone); //MWG: This will set preferred_zone to be the highest zone IDX allowable. Under the vanilla kernel, this made sense as the hierarchy was HighMem->Normal->DMA32->DMA. We need to figure out how to change this to prefer the lowest power DIMM, at some point.
 	if (!preferred_zone) {
 		put_mems_allowed();
 		return NULL;
@@ -2461,18 +2458,27 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	/* First allocation attempt */
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG
+	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
+	if (bad_range(finalZone, page)) { //MWG
+				printk(KERN_EMERG "alloc_pages_nodemask() -- freelist (1): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
+				return NULL;
+	}
 #else
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype);
 #endif
-	if (unlikely(!page))
+	if (unlikely(!page)) { //MWG
 		page = __alloc_pages_slowpath(gfp_mask, order,
 				zonelist, high_zoneidx, nodemask,
 				preferred_zone, migratetype);
+		if (bad_range(finalZone, page)) { //MWG
+				printk(KERN_EMERG"alloc_pages_nodemask() -- slowpath (2): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
+				return NULL;
+		}
+	}
 	put_mems_allowed();
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
