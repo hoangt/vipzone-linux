@@ -2462,8 +2462,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
 	if (bad_range(finalZone, page)) { //MWG
-				printk(KERN_EMERG "alloc_pages_nodemask() -- freelist (1): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
-				return NULL;
+				printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- freelist (1): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
+				printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
+				page = NULL;
 	}
 #else
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
@@ -2475,8 +2476,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 				zonelist, high_zoneidx, nodemask,
 				preferred_zone, migratetype);
 		if (bad_range(finalZone, page)) { //MWG
-				printk(KERN_EMERG"alloc_pages_nodemask() -- slowpath (2): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
-				return NULL;
+				printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- slowpath (2): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
+				printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
+				page = NULL;
 		}
 	}
 	put_mems_allowed();

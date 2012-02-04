@@ -215,6 +215,8 @@ struct per_cpu_pageset {
 //MWG: Make this a config option!
 #ifdef CONFIG_ZONE_BYDIMM
 #define NR_DIMMS 2
+#define DIMM_SIZE_BYTES 2147483648 //2GB per DIMM
+#define PAGE_SIZE_BYTES 4096 //this should already be defined elsewhere...
 #endif
 
 enum zone_type {

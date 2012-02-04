@@ -623,16 +623,16 @@ void __init paging_init(void)
 	#if NR_DIMMS == 1
 	max_zone_pfns[ZONE_DIMM1] = max_pfn;
 	#elif NR_DIMMS == 2
-	max_zone_pfns[ZONE_DIMM1] = max_pfn/2;
+	max_zone_pfns[ZONE_DIMM1] = DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
 	max_zone_pfns[ZONE_DIMM2] = max_pfn;
 	#elif NR_DIMMS == 3
-	max_zone_pfns[ZONE_DIMM1] = max_pfn/3;
-	max_zone_pfns[ZONE_DIMM2] = 2*max_pfn/3;
+	max_zone_pfns[ZONE_DIMM1] = DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
+	max_zone_pfns[ZONE_DIMM2] = 2*DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
 	max_zone_pfns[ZONE_DIMM3] = max_pfn;
 	#elif NR_DIMMS == 4
-	max_zone_pfns[ZONE_DIMM1] = max_pfn/4;
-	max_zone_pfns[ZONE_DIMM2] = 2*max_pfn/4;
-	max_zone_pfns[ZONE_DIMM3] = 3*max_pfn/4;
+	max_zone_pfns[ZONE_DIMM1] = DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
+	max_zone_pfns[ZONE_DIMM2] = 2*DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
+	max_zone_pfns[ZONE_DIMM3] = 3*DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
 	max_zone_pfns[ZONE_DIMM4] = max_pfn;
 	#else
 	#error Too many DIMMs...MWG
@@ -647,7 +647,7 @@ void __init paging_init(void)
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG debugging
 	for (i = 0; i < MAX_NR_ZONES; i++)
-		printk(KERN_DEBUG "<MWG> Max pfn for zone %d: %lu\n", i, max_zone_pfns[i]);
+		printk(KERN_DEBUG "<MWG> Max pfn for zone %d: %lu. This corresponds to %lu MB.\n", i, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
