@@ -157,23 +157,16 @@ static inline unsigned long node_page_state(int node,
 				 enum zone_stat_item item)
 {
 	struct zone *zones = NODE_DATA(node)->node_zones;
-
-	return
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-		zone_page_state(&zones[ZONE_DIMM1], item) +
-	#if CONFIG_NR_DIMMS >= 2
-		zone_page_state(&zones[ZONE_DIMM2], item) +
-	#endif
-	#if CONFIG_NR_DIMMS >= 3
-		zone_page_state(&zones[ZONE_DIMM3], item) +
-	#endif
-	#if CONFIG_NR_DIMMS == 4
-		zone_page_state(&zones[ZONE_DIMM4], item) +
-	#endif
-	#if CONFIG_NR_DIMMS > 4
-	#error MWG...Too many DIMMs configured.
-	#endif
+	unsigned long retval = 0;
+	int i = 0;
+	
+	for (i = 0; i < nr_dimms; i++)
+		retval += zone_page_state(&zones[i], item);
+	retval += zone_page_state(&zones[ZONE_MOVABLE], item);
+	return retval;
 #else
+	return
 	#ifdef CONFIG_ZONE_DMA
 		zone_page_state(&zones[ZONE_DMA], item) +
 	#endif
@@ -184,8 +177,8 @@ static inline unsigned long node_page_state(int node,
 	#ifdef CONFIG_HIGHMEM
 		zone_page_state(&zones[ZONE_HIGHMEM], item) +
 	#endif
-#endif
 		zone_page_state(&zones[ZONE_MOVABLE], item);
+#endif
 }
 
 extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);

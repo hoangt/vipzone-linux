@@ -11,21 +11,30 @@ config ZONE_BYDIMM
 	  
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
 
-config NR_DIMMS
-	int "Number of DIMMs"
+config MAX_NR_DIMMS
+	int "Max number of DIMMs to support"
+	depends on ZONE_BYDIMM
+	default "4"
+	help
+	  Specify the maximum number of DIMMs to support in the kernel, regardless of whether we actually use that many.
+
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
+config DEF_NR_DIMMS
+	int "Default number of DIMMs"
 	depends on ZONE_BYDIMM
 	default "2"
 	help
-  	  Specify the number of physical DIMMs in the system.
+  	  Specify the default number of physical DIMMs in the system. This can be overridden by using the "nr_dimms=" command-line parameter.
 
   	  Author: Mark Gottscho <mgottscho@ucla.edu>
 
-config DIMM_SIZE_MBYTES
-	int "DIMM Size in MBytes"
+config DEF_DIMM_SIZE_MBYTES
+	int "Default DIMM size in MBytes"
 	depends on ZONE_BYDIMM
 	default "1024"
 	help
-	  Specify the number of megabytes for each memory DIMM in the system. The default is 1024 MB (1 GB).
+	  Specify the default number of megabytes for each memory DIMM in the system. This can be overridden by using the "dimm_size_mbytes=" command-line parameter.
 	
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
 

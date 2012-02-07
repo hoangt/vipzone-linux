@@ -162,6 +162,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 }
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG: Don't use DMA, DMA32, or HighMem if we are zoning by DIMM.
+extern unsigned int nr_dimms;
 	#define OPT_ZONE_NORMAL ZONE_DIMM1
 	#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL
 	#define OPT_ZONE_DMA OPT_ZONE_NORMAL
@@ -269,7 +270,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 					 ((1 << ZONES_SHIFT) - 1);
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	if (z == OPT_ZONE_NORMAL) // If we got OPT_ZONE_NORMAL (ZONE_DIMM1) then we want to return the idx of the highest DIMM instead. By doing this manually, we avoid having to account for additional zone combinations with extra DIMMs, and instead lump them all together as one mega "ZONE_NORMAL".
-		z += CONFIG_NR_DIMMS-1;
+		z += nr_dimms-1;
 #endif
 		
 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);

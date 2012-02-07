@@ -148,32 +148,46 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  * TBD: should special case ZONE_DMA32 machines here - in those we normally
  * don't need any ZONE_NORMAL reservation
  */
-int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	 256, //DIMM1
-	#if CONFIG_NR_DIMMS > 1
-	 256, //DIMM2
+int sysctl_lowmem_reserve_ratio[CONFIG_MAX_NR_DIMMS] = {
+	128,
+	#if CONFIG_MAX_NR_DIMMS > 1
+	512,
 	#endif
-	#if CONFIG_NR_DIMMS > 2
-	 256, //DIMM3
+	#if CONFIG_MAX_NR_DIMMS > 2
+	512,
 	#endif
-	#if CONFIG_NR_DIMMS > 3
-	 256, //DIMM4
+	#if CONFIG_MAX_NR_DIMMS > 3
+	512,
 	#endif
-	#if CONFIG_NR_DIMMS > 4
-	#error MWG...Too many DIMMs configured.
+	#if CONFIG_MAX_NR_DIMMS > 4
+	512,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 5
+	512,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 6
+	512,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS == 8
+	512,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 8
+	#error CONFIG_MAX_NR_DIMMS > 8, too many.
 	#endif
 #else
+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 	#ifdef CONFIG_ZONE_DMA
-	 256,
+ 	256,
 	#endif
 	#ifdef CONFIG_ZONE_DMA32
-	 256,
+ 	256,
 	#endif
 	#ifdef CONFIG_HIGHMEM
-	 32,
+ 	32,
 	#endif
-	 32, //NORMAL
+ 	32, //NORMAL
 #endif
 };
 
@@ -191,10 +205,21 @@ static char * const zone_names[MAX_NR_ZONES] = {
 	#if CONFIG_NR_DIMMS > 3
 	 "DIMM4",
 	#endif
-	#if CONFIG_NR_DIMMS > 4
-	#error MWG...Too many DIMMs configured.
+	#if CONFIG_MAX_NR_DIMMS > 4
+	 "DIMM5",
 	#endif
-	
+	#if CONFIG_MAX_NR_DIMMS > 5
+	 "DIMM6",
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 6
+	 "DIMM7",
+	#endif
+	#if CONFIG_MAX_NR_DIMMS == 8
+	 "DIMM8",
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 8
+	#error CONFIG_MAX_NR_DIMMS > 8, too many.
+	#endif
 #else
 	#ifdef CONFIG_ZONE_DMA
 	"DMA",

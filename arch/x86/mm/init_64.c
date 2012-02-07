@@ -55,6 +55,11 @@
 #include <asm/uv/uv.h>
 #include <asm/setup.h>
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+extern unsigned int nr_dimms;
+extern unsigned int dimm_size_mbytes;
+#endif
+
 static int __init parse_direct_gbpages_off(char *arg)
 {
 	direct_gbpages = 0;
@@ -615,10 +620,13 @@ void __init initmem_init(void)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	int i; //MWG
 	unsigned long page_size_order = 0; //MWG
 	unsigned long page_size = PAGE_SIZE; //MWG
-	
+
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	int i; //MWG
+#endif
+
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
@@ -627,23 +635,13 @@ void __init paging_init(void)
 		page_size_order++;
 	}
 	
-	#if CONFIG_NR_DIMMS == 1
-	max_zone_pfns[ZONE_DIMM1] = max_pfn;
-	#elif CONFIG_NR_DIMMS == 2
-	max_zone_pfns[ZONE_DIMM1] = CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
-	max_zone_pfns[ZONE_DIMM2] = max_pfn;
-	#elif CONFIG_NR_DIMMS == 3
-	max_zone_pfns[ZONE_DIMM1] = CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
-	max_zone_pfns[ZONE_DIMM2] = 2*CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
-	max_zone_pfns[ZONE_DIMM3] = max_pfn;
-	#elif CONFIG_NR_DIMMS == 4
-	max_zone_pfns[ZONE_DIMM1] = CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
-	max_zone_pfns[ZONE_DIMM2] = 2*CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
-	max_zone_pfns[ZONE_DIMM3] = 3*CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
-	max_zone_pfns[ZONE_DIMM4] = max_pfn;
-	#else
-	#error Too many DIMMs...MWG
-	#endif
+	//Compute the zone size in pages for each DIMM.
+	for (i = 0; i < nr_dimms; i++) {
+		if (i < nr_dimms-1) 
+			max_zone_pfns[i] = (i+1)*dimm_size_mbytes<<(20-page_size_order);
+		else //last DIMM zone
+			max_zone_pfns[i] = max_pfn;
+	}	
 #else
 	#ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
@@ -652,9 +650,10 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 #endif
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG debugging
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	printk(KERN_INFO "<MWG> We have specified (either through config or command-line) %ld DIMMs, each with %ld MB.\n", nr_dimms, dimm_size_mbytes);
 	for (i = 0; i < MAX_NR_ZONES; i++)
-		printk(KERN_DEBUG "<MWG> Max pfn for zone %d: %lu. This corresponds to %lu MB.\n", i, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
+		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
