@@ -546,7 +546,7 @@ static inline void __free_one_page(struct page *page,
 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
 
 	VM_BUG_ON(page_idx & ((1 << order) - 1));
-	//VM_BUG_ON(bad_range(zone, page)); //MWG
+	VM_BUG_ON(bad_range(zone, page));
 
 	while (order < MAX_ORDER-1) {
 		buddy_idx = __find_buddy_index(page_idx, order);
@@ -782,7 +782,7 @@ static inline void expand(struct zone *zone, struct page *page,
 		area--;
 		high--;
 		size >>= 1;
-		//VM_BUG_ON(bad_range(zone, &page[size])); //MWG
+		VM_BUG_ON(bad_range(zone, &page[size]));
 		list_add(&page[size].lru, &area->free_list[migratetype]);
 		area->nr_free++;
 		set_page_order(&page[size], high);
@@ -1384,7 +1384,7 @@ again:
 	zone_statistics(preferred_zone, zone, gfp_flags);
 	local_irq_restore(flags);
 
-	//VM_BUG_ON(bad_range(zone, page));
+	VM_BUG_ON(bad_range(zone, page));
 	if (prep_new_page(page, order, gfp_flags))
 		goto again;
 	return page;
@@ -2638,37 +2638,21 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
-	if (page && finalZone && bad_range(finalZone, page)) { //MWG
-		printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- freelist (1): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
-		printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
-				page = NULL;
-	}
 #else
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype);
 #endif
-	if (unlikely(!page)) { //MWG
-		page = __alloc_pages_slowpath_mwgstat(gfp_mask, order,
+	if (unlikely(!page))
+		page = __alloc_pages_slowpath_mwgstat(gfp_mask, order, //MWG
 				zonelist, high_zoneidx, nodemask,
 				preferred_zone, migratetype, &finalZone);
-		if (page && finalZone && bad_range(finalZone, page)) { //MWG
-			printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- slowpath (2): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
-			printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
-				page = NULL;
-		}
-	}
 	put_mems_allowed();
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 	
-	if (!page)
-		printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): Failed to obtain a page!\n");
-	if (!finalZone)
-		printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): No final zone!\n");
-	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	if (iter % 50000 == 0 && finalZone)
+	if (iter % 50000 == 0 && preferred_zone && finalZone)
 		printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
 	
 	iter++;
