@@ -616,23 +616,30 @@ void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	int i; //MWG
-
+	unsigned long page_size_order = 0; //MWG
+	unsigned long page_size = PAGE_SIZE; //MWG
+	
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	#if NR_DIMMS == 1
+	while (page_size > 1) { //MWG: We do this to avoid overflow when computing the max_zone_pfns.
+		page_size /= 2;
+		page_size_order++;
+	}
+	
+	#if CONFIG_NR_DIMMS == 1
 	max_zone_pfns[ZONE_DIMM1] = max_pfn;
-	#elif NR_DIMMS == 2
-	max_zone_pfns[ZONE_DIMM1] = DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
+	#elif CONFIG_NR_DIMMS == 2
+	max_zone_pfns[ZONE_DIMM1] = CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
 	max_zone_pfns[ZONE_DIMM2] = max_pfn;
-	#elif NR_DIMMS == 3
-	max_zone_pfns[ZONE_DIMM1] = DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
-	max_zone_pfns[ZONE_DIMM2] = 2*DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
+	#elif CONFIG_NR_DIMMS == 3
+	max_zone_pfns[ZONE_DIMM1] = CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
+	max_zone_pfns[ZONE_DIMM2] = 2*CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
 	max_zone_pfns[ZONE_DIMM3] = max_pfn;
-	#elif NR_DIMMS == 4
-	max_zone_pfns[ZONE_DIMM1] = DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
-	max_zone_pfns[ZONE_DIMM2] = 2*DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
-	max_zone_pfns[ZONE_DIMM3] = 3*DIMM_SIZE_BYTES/PAGE_SIZE_BYTES;
+	#elif CONFIG_NR_DIMMS == 4
+	max_zone_pfns[ZONE_DIMM1] = CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
+	max_zone_pfns[ZONE_DIMM2] = 2*CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
+	max_zone_pfns[ZONE_DIMM3] = 3*CONFIG_DIMM_SIZE_MBYTES<<(20-page_size_order);
 	max_zone_pfns[ZONE_DIMM4] = max_pfn;
 	#else
 	#error Too many DIMMs...MWG

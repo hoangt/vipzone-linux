@@ -269,7 +269,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 					 ((1 << ZONES_SHIFT) - 1);
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	if (z == OPT_ZONE_NORMAL) // If we got OPT_ZONE_NORMAL (ZONE_DIMM1) then we want to return the idx of the highest DIMM instead. By doing this manually, we avoid having to account for additional zone combinations with extra DIMMs, and instead lump them all together as one mega "ZONE_NORMAL".
-		z += NR_DIMMS-1;
+		z += CONFIG_NR_DIMMS-1;
 #endif
 		
 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);

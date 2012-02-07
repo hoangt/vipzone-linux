@@ -212,23 +212,16 @@ struct per_cpu_pageset {
 
 #endif /* !__GENERATING_BOUNDS.H */
 
-//MWG: Make this a config option!
-#ifdef CONFIG_ZONE_BYDIMM
-#define NR_DIMMS 2
-#define DIMM_SIZE_BYTES 2147483648 //2GB per DIMM
-#define PAGE_SIZE_BYTES 4096 //this should already be defined elsewhere...
-#endif
-
 enum zone_type {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	ZONE_DIMM1,
-	#if NR_DIMMS >= 2
+	#if CONFIG_NR_DIMMS >= 2
 		ZONE_DIMM2,
 	#endif
-	#if NR_DIMMS >= 3
+	#if CONFIG_NR_DIMMS >= 3
 		ZONE_DIMM3,
 	#endif
-	#if NR_DIMMS == 4
+	#if CONFIG_NR_DIMMS == 4
 		ZONE_DIMM4,
 	#endif
 #else
@@ -295,11 +288,11 @@ enum zone_type {
  */
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	#if MAX_NR_ZONES - (NR_DIMMS-1) < 2 // We subtract NR_DIMMS-1 such that the extra DIMM enumerations are invisible to all the gfp_zone functionality, etc.
+	#if MAX_NR_ZONES - (CONFIG_NR_DIMMS-1) < 2 // We subtract NR_DIMMS-1 such that the extra DIMM enumerations are invisible to all the gfp_zone functionality, etc.
 	#define ZONES_SHIFT 0
-	#elif MAX_NR_ZONES - (NR_DIMMS-1) <= 2
+	#elif MAX_NR_ZONES - (CONFIG_NR_DIMMS-1) <= 2
 	#define ZONES_SHIFT 1
-	#elif MAX_NR_ZONES - (NR_DIMMS-1) <= 4
+	#elif MAX_NR_ZONES - (CONFIG_NR_DIMMS-1) <= 4
 	#define ZONES_SHIFT 2
 	#else
 	#error ZONES_SHIFT -- too many zones configured adjust calculation
@@ -779,7 +772,7 @@ static inline int is_highmem_idx(enum zone_type idx)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm_idx(enum zone_type idx)
 {
-	return (idx >= ZONE_DIMM1 && idx <= ZONE_DIMM1 + NR_DIMMS - 1);
+	return (idx >= ZONE_DIMM1 && idx <= ZONE_DIMM1 + CONFIG_NR_DIMMS - 1);
 }
 #endif
 
@@ -793,7 +786,7 @@ static inline int is_dimm1_idx(enum zone_type idx)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm2_idx(enum zone_type idx)
 {
-#if NR_DIMMS > 1
+#if CONFIG_NR_DIMMS > 1
 	return (idx == ZONE_DIMM2);
 #else
 	return 0;
@@ -804,7 +797,7 @@ static inline int is_dimm2_idx(enum zone_type idx)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm3_idx(enum zone_type idx)
 {
-#if NR_DIMMS > 2
+#if CONFIG_NR_DIMMS > 2
 	return (idx == ZONE_DIMM3);
 #else
 	return 0;
@@ -815,7 +808,7 @@ static inline int is_dimm3_idx(enum zone_type idx)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm4_idx(enum zone_type idx)
 {
-#if NR_DIMMS > 3
+#if CONFIG_NR_DIMMS > 3
 	return (idx == ZONE_DIMM4);
 #else
 	return 0;
@@ -855,7 +848,7 @@ static inline int is_highmem(struct zone *zone)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 static inline int is_dimm(struct zone *zone)
 {	
-	return (zone >= zone->zone_pgdat->node_zones + ZONE_DIMM1 && zone <= zone->zone_pgdat->node_zones + ZONE_DIMM1 + NR_DIMMS - 1);
+	return (zone >= zone->zone_pgdat->node_zones + ZONE_DIMM1 && zone <= zone->zone_pgdat->node_zones + ZONE_DIMM1 + CONFIG_NR_DIMMS - 1);
 }
 #endif
 

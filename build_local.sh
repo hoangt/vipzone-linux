@@ -1,6 +1,6 @@
 #echo '>>>>> Cleaning last build...'
 #make clean
-echo '>>>>> Compiling new  kernel...'
+echo '>>>>> Compiling new kernel...'
 make -j4 > /dev/null
 echo '>>>>> Installing kernel...'
 sudo make install

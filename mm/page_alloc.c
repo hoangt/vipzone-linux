@@ -151,16 +151,16 @@ static void __free_pages_ok(struct page *page, unsigned int order);
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	 256, //DIMM1
-	#if NR_DIMMS > 1
+	#if CONFIG_NR_DIMMS > 1
 	 256, //DIMM2
 	#endif
-	#if NR_DIMMS > 2
+	#if CONFIG_NR_DIMMS > 2
 	 256, //DIMM3
 	#endif
-	#if NR_DIMMS > 3
+	#if CONFIG_NR_DIMMS > 3
 	 256, //DIMM4
 	#endif
-	#if NR_DIMMS > 4
+	#if CONFIG_NR_DIMMS > 4
 	#error MWG...Too many DIMMs configured.
 	#endif
 #else
@@ -182,16 +182,16 @@ EXPORT_SYMBOL(totalram_pages);
 static char * const zone_names[MAX_NR_ZONES] = {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	 "DIMM1",
-	#if NR_DIMMS > 1
+	#if CONFIG_NR_DIMMS > 1
 	 "DIMM2",
 	#endif
-	#if NR_DIMMS > 2
+	#if CONFIG_NR_DIMMS > 2
 	 "DIMM3",
 	#endif
-	#if NR_DIMMS > 3
+	#if CONFIG_NR_DIMMS > 3
 	 "DIMM4",
 	#endif
-	#if NR_DIMMS > 4
+	#if CONFIG_NR_DIMMS > 4
 	#error MWG...Too many DIMMs configured.
 	#endif
 	
@@ -277,35 +277,26 @@ bool oom_killer_disabled __read_mostly;
 #ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
-	int ret = 0;
 	unsigned seq;
 	unsigned long pfn = page_to_pfn(page);
 
 	do {
 		seq = zone_span_seqbegin(zone);
-		if (pfn >= zone->zone_start_pfn + zone->spanned_pages) {
-			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is greater than the max pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
-			ret = 1;
-		}
-		else if (pfn < zone->zone_start_pfn) {
-			printk(KERN_EMERG "<MWG> page_outside_zone_boundaries(): this page's pfn is less than the min pfn in the zone! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
-			ret = 1;
-		}
+		if (pfn >= zone->zone_start_pfn + zone->spanned_pages)
+			return 1;
+		else if (pfn < zone->zone_start_pfn)
+			return 1;
 	} while (zone_span_seqretry(zone, seq));
 
-	return ret;
+	return 0;
 }
 
 static int page_is_consistent(struct zone *zone, struct page *page)
 {
-	if (!pfn_valid_within(page_to_pfn(page))) {
-		printk(KERN_EMERG "<MWG> page_is_consistent(): This page's pfn is not valid within this memory node! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
+	if (!pfn_valid_within(page_to_pfn(page)))
 		return 0;
-	}
-	if (zone != page_zone(page)) {
-		printk(KERN_EMERG "<MWG> page_is_consistent(): This zone does not match page_zone(page)! Panic imminent!\n<MWG>zone == %s, pfn == %lu\n", zone->name, page_to_pfn(page)); //MWG
+	if (zone != page_zone(page))
 		return 0;
-	}
 	
 	return 1;
 }
@@ -2411,6 +2402,192 @@ got_pg:
 
 }
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+static inline struct page *
+__alloc_pages_slowpath_mwgstat(gfp_t gfp_mask, unsigned int order,
+	struct zonelist *zonelist, enum zone_type high_zoneidx,
+	nodemask_t *nodemask, struct zone *preferred_zone,
+	int migratetype, struct zone **finalZone)
+{
+	const gfp_t wait = gfp_mask & __GFP_WAIT;
+	struct page *page = NULL;
+	int alloc_flags;
+	unsigned long pages_reclaimed = 0;
+	unsigned long did_some_progress;
+	bool sync_migration = false;
+
+	/*
+	 * In the slowpath, we sanity check order to avoid ever trying to
+	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
+	 * be using allocators in order of preference for an area that is
+	 * too large.
+	 */
+	if (order >= MAX_ORDER) {
+		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+		return NULL;
+	}
+
+	/*
+	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
+	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
+	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
+	 * using a larger set of nodes after it has established that the
+	 * allowed per node queues are empty and that nodes are
+	 * over allocated.
+	 */
+	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+		goto nopage;
+
+restart:
+	if (!(gfp_mask & __GFP_NO_KSWAPD))
+		wake_all_kswapd(order, zonelist, high_zoneidx,
+						zone_idx(preferred_zone));
+
+	/*
+	 * OK, we're below the kswapd watermark and have kicked background
+	 * reclaim. Now things get more complex, so set up alloc_flags according
+	 * to how we want to proceed.
+	 */
+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+
+	/*
+	 * Find the true preferred zone if the allocation is unconstrained by
+	 * cpusets.
+	 */
+	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
+		first_zones_zonelist(zonelist, high_zoneidx, NULL,
+					&preferred_zone);
+
+rebalance:
+	/* This is the last chance, in general, before the goto nopage. */
+	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+			preferred_zone, migratetype);
+	if (page)
+		goto got_pg;
+
+	/* Allocate without watermarks if the context allows */
+	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+		page = __alloc_pages_high_priority(gfp_mask, order,
+				zonelist, high_zoneidx, nodemask,
+				preferred_zone, migratetype);
+		if (page)
+			goto got_pg;
+	}
+
+	/* Atomic allocations - we can't balance anything */
+	if (!wait)
+		goto nopage;
+
+	/* Avoid recursion of direct reclaim */
+	if (current->flags & PF_MEMALLOC)
+		goto nopage;
+
+	/* Avoid allocations with no watermarks from looping endlessly */
+	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+		goto nopage;
+
+	/*
+	 * Try direct compaction. The first pass is asynchronous. Subsequent
+	 * attempts after direct reclaim are synchronous
+	 */
+	page = __alloc_pages_direct_compact(gfp_mask, order,
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress,
+					sync_migration);
+	if (page)
+		goto got_pg;
+	sync_migration = true;
+
+	/* Try direct reclaim and then allocating */
+	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress);
+	if (page)
+		goto got_pg;
+
+	/*
+	 * If we failed to make any progress reclaiming, then we are
+	 * running out of options and have to consider going OOM
+	 */
+	if (!did_some_progress) {
+		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+			if (oom_killer_disabled)
+				goto nopage;
+			page = __alloc_pages_may_oom(gfp_mask, order,
+					zonelist, high_zoneidx,
+					nodemask, preferred_zone,
+					migratetype);
+			if (page)
+				goto got_pg;
+
+			if (!(gfp_mask & __GFP_NOFAIL)) {
+				/*
+				 * The oom killer is not called for high-order
+				 * allocations that may fail, so if no progress
+				 * is being made, there are no other options and
+				 * retrying is unlikely to help.
+				 */
+				if (order > PAGE_ALLOC_COSTLY_ORDER)
+					goto nopage;
+				/*
+				 * The oom killer is not called for lowmem
+				 * allocations to prevent needlessly killing
+				 * innocent tasks.
+				 */
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+				if (high_zoneidx < ZONE_DIMM1)
+#else
+				if (high_zoneidx < PG)
+#endif
+					goto nopage;
+			}
+
+			goto restart;
+		}
+	}
+
+	/* Check if we should retry the allocation */
+	pages_reclaimed += did_some_progress;
+	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+		/* Wait for some write requests to complete then retry */
+		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+		goto rebalance;
+	} else {
+		/*
+		 * High-order allocations do not necessarily loop after
+		 * direct reclaim and reclaim/compaction depends on compaction
+		 * being called after reclaim so call directly if necessary
+		 */
+		page = __alloc_pages_direct_compact(gfp_mask, order,
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress,
+					sync_migration);
+		if (page)
+			goto got_pg;
+	}
+
+nopage:
+	warn_alloc_failed(gfp_mask, order, NULL);
+	if (finalZone) //MWG
+		*finalZone = NULL;
+	return page;
+got_pg:
+	if (kmemcheck_enabled)
+		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
+	if (finalZone) //MWG
+		*finalZone = page_zone(page);
+	return page;
+
+}
+#endif
+
 /*
  * This is the 'heart' of the zoned buddy allocator.
  */
@@ -2461,9 +2638,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
-	if (bad_range(finalZone, page)) { //MWG
-				printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- freelist (1): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
-				printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
+	if (page && finalZone && bad_range(finalZone, page)) { //MWG
+		printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- freelist (1): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
+		printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
 				page = NULL;
 	}
 #else
@@ -2472,12 +2649,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 			preferred_zone, migratetype);
 #endif
 	if (unlikely(!page)) { //MWG
-		page = __alloc_pages_slowpath(gfp_mask, order,
+		page = __alloc_pages_slowpath_mwgstat(gfp_mask, order,
 				zonelist, high_zoneidx, nodemask,
-				preferred_zone, migratetype);
-		if (bad_range(finalZone, page)) { //MWG
-				printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- slowpath (2): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
-				printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
+				preferred_zone, migratetype, &finalZone);
+		if (page && finalZone && bad_range(finalZone, page)) { //MWG
+			printk(KERN_EMERG "<MWG> alloc_pages_nodemask() -- slowpath (2): bad_range! zone == %s | %lu <= zone pfn range <= %lu | page's zone == %s | page's pfn: %lu\n", finalZone->name, finalZone->zone_start_pfn, finalZone->zone_start_pfn+finalZone->spanned_pages, page_zone(page)->name, page_to_pfn(page));
+			printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): This allocation request was for order %u pages, and gfp_zone() gave us %u.\n", order, gfp_zone(gfp_mask));
 				page = NULL;
 		}
 	}
@@ -2485,14 +2662,14 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 	
+	if (!page)
+		printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): Failed to obtain a page!\n");
+	if (!finalZone)
+		printk(KERN_EMERG "<MWG> alloc_pages_nodemask(): No final zone!\n");
+	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	if (iter % 50000 == 0) {
-		if (finalZone)
-			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
-		else
-			printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was NULL (failed???).\n", preferred_zone->name);
-		
-	}
+	if (iter % 50000 == 0 && finalZone)
+		printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
 	
 	iter++;
 #endif

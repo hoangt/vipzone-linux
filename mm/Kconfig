@@ -11,6 +11,24 @@ config ZONE_BYDIMM
 	  
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
 
+config NR_DIMMS
+	int "Number of DIMMs"
+	depends on ZONE_BYDIMM
+	default "2"
+	help
+  	  Specify the number of physical DIMMs in the system.
+
+  	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
+config DIMM_SIZE_MBYTES
+	int "DIMM Size in MBytes"
+	depends on ZONE_BYDIMM
+	default "1024"
+	help
+	  Specify the number of megabytes for each memory DIMM in the system. The default is 1024 MB (1 GB).
+	
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
 config SELECT_MEMORY_MODEL
 	def_bool y
 	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
