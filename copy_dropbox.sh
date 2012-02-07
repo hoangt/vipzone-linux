@@ -13,6 +13,7 @@ cp -R ~/kerneldev/lib/modules/ ~/Dropbox/mwg_research/atombuild/
 rm -rf ~/kerneldev/lib
 echo '>>>>> Copying install script...'
 cp atom_install.sh ~/Dropbox/mwg_research/atombuild/
-echo '>>>>> Copying memallocator test program...'
+echo '>>>>> Compiling and copying memallocator test program...'
+gcc ../memallocator/memallocator.c -o ../memallocator/memallocator
 cp ../memallocator/memallocator ~/Dropbox/mwg_research/atombuild/
 echo '>>>>> Done!'
