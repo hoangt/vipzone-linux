@@ -185,7 +185,7 @@ int parse_args(const char *name,
 	char *param, *val;
 
 	DEBUGP("Parsing ARGS: %s\n", args);
-
+	printk(KERN_INFO "<MWG> Parsing command-line arguments...\n"); //MWG
 	/* Chew leading spaces */
 	args = skip_spaces(args);
 

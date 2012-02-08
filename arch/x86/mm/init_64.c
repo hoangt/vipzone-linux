@@ -651,8 +651,8 @@ void __init paging_init(void)
 #endif
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	printk(KERN_INFO "<MWG> We have specified (either through config or command-line) %ld DIMMs, each with %ld MB.\n", nr_dimms, dimm_size_mbytes);
-	for (i = 0; i < MAX_NR_ZONES; i++)
+	printk(KERN_INFO "<MWG> We have specified (either through config or command-line) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
+	for (i = 0; i < nr_dimms; i++)
 		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);

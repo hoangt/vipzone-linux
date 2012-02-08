@@ -196,13 +196,13 @@ EXPORT_SYMBOL(totalram_pages);
 static char * const zone_names[MAX_NR_ZONES] = {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	 "DIMM1",
-	#if CONFIG_NR_DIMMS > 1
+	#if CONFIG_MAX_NR_DIMMS > 1
 	 "DIMM2",
 	#endif
-	#if CONFIG_NR_DIMMS > 2
+	#if CONFIG_MAX_NR_DIMMS > 2
 	 "DIMM3",
 	#endif
-	#if CONFIG_NR_DIMMS > 3
+	#if CONFIG_MAX_NR_DIMMS > 3
 	 "DIMM4",
 	#endif
 	#if CONFIG_MAX_NR_DIMMS > 4
