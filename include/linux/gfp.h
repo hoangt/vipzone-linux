@@ -161,15 +161,9 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
 }
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG: Don't use DMA, DMA32, or HighMem if we are zoning by DIMM.
-extern unsigned int nr_dimms;
-	#define OPT_ZONE_NORMAL ZONE_DIMM1
-	#define OPT_ZONE_HIGHMEM OPT_ZONE_NORMAL
-	#define OPT_ZONE_DMA OPT_ZONE_NORMAL
-	#define OPT_ZONE_DMA32 OPT_ZONE_NORMAL
+#ifdef CONFIG_ZONE_BYDIMM //MWG: We aren't using the GFP_ZONE_TABLE
+	extern unsigned int nr_dimms;
 #else //MWG: Regular case
-	#define OPT_ZONE_NORMAL ZONE_NORMAL //MWG
-	
 	#ifdef CONFIG_HIGHMEM
 	#define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
 	#else
@@ -187,12 +181,12 @@ extern unsigned int nr_dimms;
 	#else
 	#define OPT_ZONE_DMA32 ZONE_NORMAL
 	#endif
-#endif
 
 #if 16 * ZONES_SHIFT > BITS_PER_LONG
 #error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
 #endif
 
+#endif
 /*
  * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
  * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
@@ -231,17 +225,18 @@ extern unsigned int nr_dimms;
  * ZONES_SHIFT must be <= 2 on 32 bit platforms.
  */
  
-//MWG: Changed ZONE_NORMAL to OPT_ZONE_NORMAL.
+#ifndef CONFIG_ZONE_BYDIMM //MWG: We don't need the zone table for looking up DIMMs
 #define GFP_ZONE_TABLE ( \
-	(OPT_ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
+	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
 	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
 	| (OPT_ZONE_DMA32 << ___GFP_DMA32 * ZONES_SHIFT)		      \
-	| (OPT_ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
+	| (ZONE_NORMAL << ___GFP_MOVABLE * ZONES_SHIFT)			      \
 	| (OPT_ZONE_DMA << (___GFP_MOVABLE | ___GFP_DMA) * ZONES_SHIFT)	      \
 	| (ZONE_MOVABLE << (___GFP_MOVABLE | ___GFP_HIGHMEM) * ZONES_SHIFT)   \
 	| (OPT_ZONE_DMA32 << (___GFP_MOVABLE | ___GFP_DMA32) * ZONES_SHIFT)   \
 )
+#endif
 
 /*
  * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32
@@ -266,11 +261,11 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	enum zone_type z;
 	int bit = (__force int) (flags & GFP_ZONEMASK);
 
-	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
+#ifdef CONFIG_ZONE_BYDIMM //MWG: We can add complexity here later if we need to. For now, all allocations will go DIMM1, although they won't necessarily realize it. The gfp_t functionality is unchanged!
+		z = ZONE_DIMM1;
+#else	
+		z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-	if (z == OPT_ZONE_NORMAL) // If we got OPT_ZONE_NORMAL (ZONE_DIMM1) then we want to return the idx of the highest DIMM instead. By doing this manually, we avoid having to account for additional zone combinations with extra DIMMs, and instead lump them all together as one mega "ZONE_NORMAL".
-		z += nr_dimms-1;
 #endif
 		
 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
