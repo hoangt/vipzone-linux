@@ -256,13 +256,14 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA | ___GFP_HIGHMEM)  \
 )
 
+//MWG: Modify this function to decide the preferred zone based on lowest power consumption.
 static inline enum zone_type gfp_zone(gfp_t flags)
 {
 	enum zone_type z;
 	int bit = (__force int) (flags & GFP_ZONEMASK);
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG: We can add complexity here later if we need to. For now, all allocations will go DIMM1, although they won't necessarily realize it. The gfp_t functionality is unchanged!
-		z = ZONE_DIMM1;
+		z = ZONE_DIMM1+nr_dimms-1; //set it to the last DIMM. That way, the fallback order will go in decreasing numerical order down to DIMM1. Later, we can make more complicated decisions.
 #else	
 		z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);

@@ -2651,7 +2651,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,
 				nodemask ? : &cpuset_current_mems_allowed,
-				&preferred_zone); //MWG: This will set preferred_zone to be the highest zone IDX allowable. Under the vanilla kernel, this made sense as the hierarchy was HighMem->Normal->DMA32->DMA. We need to figure out how to change this to prefer the lowest power DIMM, at some point.
+				&preferred_zone);
 	if (!preferred_zone) {
 		put_mems_allowed();
 		return NULL;
