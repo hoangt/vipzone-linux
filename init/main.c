@@ -84,6 +84,8 @@
 #ifdef CONFIG_ZONE_BYDIMM //MWG: Here we define two global variables that are initialized using command-line arguments to set the number of DIMMs in the system as well as the size of each DIMM in MB.
 unsigned int nr_dimms = CONFIG_DEF_NR_DIMMS;
 unsigned int dimm_size_mbytes = CONFIG_DEF_DIMM_SIZE_MBYTES;
+enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+EXPORT_SYMBOL(dimm_zone_ordering);
 EXPORT_SYMBOL(nr_dimms);
 EXPORT_SYMBOL(dimm_size_mbytes);
 

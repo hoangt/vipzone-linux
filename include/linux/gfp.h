@@ -163,7 +163,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG: We aren't using the GFP_ZONE_TABLE
 	extern unsigned int nr_dimms;
-#else //MWG: Regular case
+#else 
 	#ifdef CONFIG_HIGHMEM
 	#define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
 	#else
@@ -198,11 +198,6 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
  * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
  * 
- * MWG: We disabled ZONE_DMA, ZONE_DMA32, and ZONE_NORMAL. Instead, we need to resolve to individual DIMM zones. However, for these table computations,
- * NORMAL will still persist through OPT_ZONE_NORMAL, and will simply understand that it actually resolves to DIMM 1...N. This way, we avoid mucking up
- * the nice GFP_ZONE_TABLE computations. Meanwhile, everyone else does not need to know the difference between DIMM zones. They
- * can continue to use the ZONE_NORMAL GFP allocation flags.
- *
  *       bit       result
  *       =================
  *       0x0    => NORMAL
@@ -225,8 +220,10 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * ZONES_SHIFT must be <= 2 on 32 bit platforms.
  */
  
-#ifndef CONFIG_ZONE_BYDIMM //MWG: We don't need the zone table for looking up DIMMs
-#define GFP_ZONE_TABLE ( \
+#ifdef CONFIG_ZONE_BYDIMM //MWG: We don't need the zone table for looking up DIMMs
+	extern enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS]; 
+#else
+	#define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
 	| (OPT_ZONE_HIGHMEM << ___GFP_HIGHMEM * ZONES_SHIFT)		      \
@@ -262,10 +259,10 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	enum zone_type z;
 	int bit = (__force int) (flags & GFP_ZONEMASK);
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG: We can add complexity here later if we need to. For now, all allocations will go DIMM1, although they won't necessarily realize it. The gfp_t functionality is unchanged!
-		z = ZONE_DIMM1+nr_dimms-1; //set it to the last DIMM. That way, the fallback order will go in decreasing numerical order down to DIMM1. Later, we can make more complicated decisions.
+#ifdef CONFIG_ZONE_BYDIMM
+	z = dimm_zone_ordering[0]; //MWG: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
 #else	
-		z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
+	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);
 #endif
 		
