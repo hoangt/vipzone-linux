@@ -80,6 +80,10 @@ DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
 EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 #endif
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+extern enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+#endif
+
 /*
  * Array of node states.
  */
@@ -2613,6 +2617,34 @@ got_pg:
 }
 #endif
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+
+//Find the highest priority dimm zone given a priority_index. We use this because we may not always want to traverse zone_idx's in descending order (for power consumption reasons).
+int find_preferred_dimm_zone(struct zonelist *zonelist, enum zone_type high_zoneidx, struct zone **preferred_zone, int priority_index) {
+	int i;
+	enum zone_type ideal_zone_idx;
+
+	if (unlikely(!zonelist || !preferred_zone || priority_index < 0 || priority_index > nr_dimms || high_zoneidx >= nr_dimms || high_zoneidx < ZONE_DIMM1)) //Check for bounds
+		BUG();
+
+	ideal_zone_idx = dimm_zone_ordering[priority_index];
+
+	if (unlikely(ideal_zone_idx < ZONE_DIMM1 || ideal_zone_idx > high_zoneidx)) //Check for bounds
+		BUG();
+	
+	//Get the zone corresponding to ideal_zone_idx
+	for (i = ZONE_DIMM1; i < nr_dimms; i++)
+		if (zonelist->_zonerefs[i].zone_idx == ideal_zone_idx) { //found!
+			*preferred_zone = zonelist->_zonerefs[i].zone;
+			return 0;
+		}
+
+	*preferred_zone = NULL;
+	return 1;
+}
+
+#endif
+
 /*
  * This is the 'heart' of the zoned buddy allocator.
  */
@@ -2628,6 +2660,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	static unsigned long iter = 0;
+	int priority_index = 0; //Used for finding the corresponding DIMM zone for a given priority index (lookup into dimm_zone_ordering[]).
 #endif
 
 	gfp_mask &= gfp_allowed_mask;
@@ -2648,10 +2681,17 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 		return NULL;
 
 	get_mems_allowed();
+	
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	
+	if (find_preferred_dimm_zone(zonelist, high_zoneidx, &preferred_zone, priority_index)) //Find the highest priority DIMM zone (not to exceed high_zoneidx) --> preferred_zone
+		printk(KERN_WARNING "<MWG>: find_preferred_dimm_zone() failed!\n");
+#else 
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,
 				nodemask ? : &cpuset_current_mems_allowed,
-				&preferred_zone);
+				&preferred_zone); //MWG: This is used to get the first zone for high_zoneidx, and fill it into preferred_zone. The function will go iteratively in decreasing order. Thus the preferred_zone is always the highest IDX possible.
+#endif
 	if (!preferred_zone) {
 		put_mems_allowed();
 		return NULL;

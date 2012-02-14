@@ -660,7 +660,11 @@ void __init paging_init(void)
 #endif
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	printk(KERN_INFO "<MWG> We have specified (either through config or command-line) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
+	printk(KERN_INFO "<MWG> We have specified (through config) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
+	printk(KERN_INFO "<MWG> DIMM zone priorities:");
+	for (i = 0; i < CONFIG_MAX_NR_DIMMS-1; i++) 
+		printk(KERN_INFO " zone %d (DIMM %d) -->", dimm_zone_ordering[i], dimm_zone_ordering[i]+1);
+	printk(KERN_INFO " zone %d (DIMM %d)\n", dimm_zone_ordering[i], dimm_zone_ordering[i]+1);
 	for (i = 0; i < nr_dimms; i++)
 		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif
