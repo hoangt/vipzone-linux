@@ -81,7 +81,9 @@ EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 #endif
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-extern enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+
+extern enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+extern struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
 #endif
 
 /*
@@ -1805,7 +1807,7 @@ this_zone_full:
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
- * MWG: Slightly modified version of the function for reporting the actual allocated zone.
+ * MWG: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
  */
 static struct page *
 get_page_from_freelist_mwgstat(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
@@ -1820,14 +1822,27 @@ get_page_from_freelist_mwgstat(gfp_t gfp_mask, nodemask_t *nodemask, unsigned in
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+
+	int priority_index;
+#endif
 	classzone_idx = zone_idx(preferred_zone);
+
 zonelist_scan:
 	/*
 	 * Scan zonelist, looking for a zone with enough free.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+
+	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
+		z = dimm_zoneref_list[priority_index];
+		zone = z->zone;	
+
+#else
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 						high_zoneidx, nodemask) {
+#endif
 		if (NUMA_BUILD && zlc_active &&
 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
 				continue;
@@ -2432,6 +2447,7 @@ got_pg:
 }
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+
 static inline struct page *
 __alloc_pages_slowpath_mwgstat(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
@@ -2484,8 +2500,13 @@ restart:
 	 * cpusets.
 	 */
 	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+
+		preferred_zone = dimm_zoneref_list[0]->zone;
+#else
 		first_zones_zonelist(zonelist, high_zoneidx, NULL,
 					&preferred_zone);
+#endif
 
 rebalance:
 	/* This is the last chance, in general, before the goto nopage. */
@@ -2617,34 +2638,6 @@ got_pg:
 }
 #endif
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-
-//Find the highest priority dimm zone given a priority_index. We use this because we may not always want to traverse zone_idx's in descending order (for power consumption reasons).
-int find_preferred_dimm_zone(struct zonelist *zonelist, enum zone_type high_zoneidx, struct zone **preferred_zone, int priority_index) {
-	int i;
-	enum zone_type ideal_zone_idx;
-
-	if (unlikely(!zonelist || !preferred_zone || priority_index < 0 || priority_index > nr_dimms || high_zoneidx >= nr_dimms || high_zoneidx < ZONE_DIMM1)) //Check for bounds
-		BUG();
-
-	ideal_zone_idx = dimm_zone_ordering[priority_index];
-
-	if (unlikely(ideal_zone_idx < ZONE_DIMM1 || ideal_zone_idx > high_zoneidx)) //Check for bounds
-		BUG();
-	
-	//Get the zone corresponding to ideal_zone_idx
-	for (i = ZONE_DIMM1; i < nr_dimms; i++)
-		if (zonelist->_zonerefs[i].zone_idx == ideal_zone_idx) { //found!
-			*preferred_zone = zonelist->_zonerefs[i].zone;
-			return 0;
-		}
-
-	*preferred_zone = NULL;
-	return 1;
-}
-
-#endif
-
 /*
  * This is the 'heart' of the zoned buddy allocator.
  */
@@ -2660,7 +2653,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	static unsigned long iter = 0;
-	int priority_index = 0; //Used for finding the corresponding DIMM zone for a given priority index (lookup into dimm_zone_ordering[]).
 #endif
 
 	gfp_mask &= gfp_allowed_mask;
@@ -2681,17 +2673,16 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 		return NULL;
 
 	get_mems_allowed();
-	
+
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	
-	if (find_preferred_dimm_zone(zonelist, high_zoneidx, &preferred_zone, priority_index)) //Find the highest priority DIMM zone (not to exceed high_zoneidx) --> preferred_zone
-		printk(KERN_WARNING "<MWG>: find_preferred_dimm_zone() failed!\n");
-#else 
+	preferred_zone = dimm_zoneref_list[0]->zone; //Get the highest priority DIMM
+#else	
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,
 				nodemask ? : &cpuset_current_mems_allowed,
-				&preferred_zone); //MWG: This is used to get the first zone for high_zoneidx, and fill it into preferred_zone. The function will go iteratively in decreasing order. Thus the preferred_zone is always the highest IDX possible.
-#endif
+				&preferred_zone); 
+#endif	
 	if (!preferred_zone) {
 		put_mems_allowed();
 		return NULL;
@@ -2700,6 +2691,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	/* First allocation attempt */
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+
 	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
@@ -3119,6 +3111,9 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 				int nr_zones, enum zone_type zone_type)
 {
 	struct zone *zone;
+	int i; //MWG
+	int j; //MWG
+	enum zone_type zidx; //MWG
 
 	BUG_ON(zone_type >= MAX_NR_ZONES);
 	zone_type++;
@@ -3133,6 +3128,17 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 		}
 
 	} while (zone_type);
+	
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+	
+	printk(KERN_INFO "<MWG> Constructing dimm_zoneref_list[] for prioritizing DIMM allocations.\n");
+	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_zoneref_list
+		zidx = __dimm_zone_ordering[i];
+		for (j=0; j < nr_dimms && zidx != zonelist->_zonerefs[j].zone_idx; j++); //Locate the zone in the zonelist with matching zone_type.
+		dimm_zoneref_list[i] = &(zonelist->_zonerefs[j]);
+		printk(KERN_INFO "<MWG> dimm_zoneref_list[%d]: ZONE_%s\n", i, dimm_zoneref_list[i]->zone->name);
+	}	
+#endif
 	return nr_zones;
 }
 

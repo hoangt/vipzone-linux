@@ -163,6 +163,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG: We aren't using the GFP_ZONE_TABLE
 	extern unsigned int nr_dimms;
+	extern enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
 #else 
 	#ifdef CONFIG_HIGHMEM
 	#define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
@@ -220,9 +221,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * ZONES_SHIFT must be <= 2 on 32 bit platforms.
  */
  
-#ifdef CONFIG_ZONE_BYDIMM //MWG: We don't need the zone table for looking up DIMMs
-	extern enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS]; 
-#else
+#ifndef CONFIG_ZONE_BYDIMM //MWG: We don't need the zone table for looking up DIMMs
 	#define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
@@ -260,7 +259,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	int bit = (__force int) (flags & GFP_ZONEMASK);
 
 #ifdef CONFIG_ZONE_BYDIMM
-	z = dimm_zone_ordering[0]; //MWG: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
+	z = __dimm_zone_ordering[0]; //MWG: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
 #else	
 	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);

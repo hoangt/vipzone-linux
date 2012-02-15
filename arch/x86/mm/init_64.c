@@ -56,9 +56,11 @@
 #include <asm/setup.h>
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+
 extern unsigned int nr_dimms;
 extern unsigned int dimm_size_mbytes;
-extern enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+extern enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+extern struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
 #endif
 
 static int __init parse_direct_gbpages_off(char *arg)
@@ -644,12 +646,12 @@ void __init paging_init(void)
 			max_zone_pfns[i] = max_pfn;
 	}
 	
-	//MWG: Init the DIMM zone priorities (placeholder -- can be built based on power profiles)	
+	//MWG: Init the DIMM zone priorities	
 	for (i = 0; i < CONFIG_MAX_NR_DIMMS; i++) {
 		if (i < nr_dimms) //in the usable range
-			dimm_zone_ordering[i] = ZONE_DIMM1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
+			__dimm_zone_ordering[i] = ZONE_DIMM1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
 		else
-			dimm_zone_ordering[i] = ZONE_DIMM1; //We can support more DIMMs than present. For these slots, just put the lowest DIMM. Note that this *should* not be checked, this is for safety.
+			__dimm_zone_ordering[i] = ZONE_DIMM1; //We can support more DIMMs than present. For these slots, just put the lowest DIMM. Note that this *should* not be checked, this is for safety.
 	}
 #else
 	#ifdef CONFIG_ZONE_DMA
@@ -660,11 +662,12 @@ void __init paging_init(void)
 #endif
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+
 	printk(KERN_INFO "<MWG> We have specified (through config) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
 	printk(KERN_INFO "<MWG> DIMM zone priorities:");
 	for (i = 0; i < CONFIG_MAX_NR_DIMMS-1; i++) 
-		printk(KERN_INFO " zone %d (DIMM %d) -->", dimm_zone_ordering[i], dimm_zone_ordering[i]+1);
-	printk(KERN_INFO " zone %d (DIMM %d)\n", dimm_zone_ordering[i], dimm_zone_ordering[i]+1);
+		printk(KERN_INFO " zone %d (DIMM %d) -->", __dimm_zone_ordering[i], __dimm_zone_ordering[i]+1);
+	printk(KERN_INFO " zone %d (DIMM %d)\n", __dimm_zone_ordering[i], __dimm_zone_ordering[i]+1);
 	for (i = 0; i < nr_dimms; i++)
 		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif

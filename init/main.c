@@ -81,29 +81,17 @@
 #include <asm/smp.h>
 #endif
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG: Here we define two global variables that are initialized using command-line arguments to set the number of DIMMs in the system as well as the size of each DIMM in MB.
+#ifdef CONFIG_ZONE_BYDIMM //MWG
+
 unsigned int nr_dimms = CONFIG_DEF_NR_DIMMS;
 unsigned int dimm_size_mbytes = CONFIG_DEF_DIMM_SIZE_MBYTES;
-enum zone_type dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
-EXPORT_SYMBOL(dimm_zone_ordering);
+enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
+struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
+
 EXPORT_SYMBOL(nr_dimms);
 EXPORT_SYMBOL(dimm_size_mbytes);
-
-static int __init set_nr_dimms(char *str)
-{
-    get_option(&str, &nr_dimms);
-    return 1;
-}
-
-__setup("nr_dimms=", set_nr_dimms);
-
-static int __init set_dimm_size_mbytes(char *str)
-{
-    get_option(&str, &dimm_size_mbytes);
-    return 1;
-}
-
-__setup("dimm_size_mbytes=", set_dimm_size_mbytes);
+EXPORT_SYMBOL(__dimm_zone_ordering);
+EXPORT_SYMBOL(dimm_zoneref_list);
 #endif
 
 static int kernel_init(void *);

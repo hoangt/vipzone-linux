@@ -980,8 +980,7 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 					nodemask_t *nodes,
 					struct zone **zone)
 {
-	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
-								zone);
+	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes, zone);
 }
 
 /**
