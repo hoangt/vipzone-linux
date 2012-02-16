@@ -59,6 +59,7 @@
 
 extern unsigned int nr_dimms;
 extern unsigned int dimm_size_mbytes;
+extern enum zone_type max_dimm_zone_for_dma32;
 extern enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
 extern struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
 #endif
@@ -638,8 +639,22 @@ void __init paging_init(void)
 		page_size_order++;
 	}
 	
+	#ifdef CONFIG_ZONE_DMA
+	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN; //No explicit DMA32 zone.
+	#endif
+	
+	#ifdef CONFIG_ZONE_DMA32
+	if (unlikely((dimm_size_mbytes << 20) > (4<<30))) //Check to make sure DIMM sizes are smaller than DMA32 address space.
+		printk(KERN_WARNING "<MWG> DIMM size exceeds 4GB -- DMA32 may not work correctly!\n");
+
+	max_dimm_zone_for_dma32 = (4<<30)/(dimm_size_mbytes << 20)+ZONE_DIMM1-1; //DMA32 can never address more than 4GB. Compute the highest DIMM zone below this cap.	
+	printk(KERN_INFO "<MWG> Maximum DIMM zone allowed for DMA32 allocations: DIMM%d\n", max_dimm_zone_for_dma32);
+	#else
+	max_dimm_zone_for_dma32 = ZONE_DIMM1; //Unused placeholder.
+	#endif
+
 	//Compute the zone size in pages for each DIMM.
-	for (i = 0; i < nr_dimms; i++) {
+	for (i = ZONE_DIMM1; i < nr_dimms+ZONE_DIMM1; i++) {
 		if (i < nr_dimms-1) 
 			max_zone_pfns[i] = (i+1)*dimm_size_mbytes<<(20-page_size_order);
 		else //last DIMM zone
@@ -668,7 +683,7 @@ void __init paging_init(void)
 	for (i = 0; i < CONFIG_MAX_NR_DIMMS-1; i++) 
 		printk(KERN_INFO " zone %d (DIMM %d) -->", __dimm_zone_ordering[i], __dimm_zone_ordering[i]+1);
 	printk(KERN_INFO " zone %d (DIMM %d)\n", __dimm_zone_ordering[i], __dimm_zone_ordering[i]+1);
-	for (i = 0; i < nr_dimms; i++)
+	for (i = ZONE_DIMM1; i < nr_dimms+ZONE_DIMM1; i++)
 		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);

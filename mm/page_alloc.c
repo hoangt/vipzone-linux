@@ -84,6 +84,8 @@ EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 
 extern enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
 extern struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
+extern enum zone_type max_dimm_zone_for_dma32;
+
 #endif
 
 /*
@@ -156,7 +158,10 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  */
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-int sysctl_lowmem_reserve_ratio[CONFIG_MAX_NR_DIMMS] = {
+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+	#ifdef CONFIG_ZONE_DMA
+	256,
+	#endif
 	128,
 	#if CONFIG_MAX_NR_DIMMS > 1
 	512,
@@ -201,7 +206,10 @@ EXPORT_SYMBOL(totalram_pages);
 
 static char * const zone_names[MAX_NR_ZONES] = {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	 "DIMM1",
+	#ifdef CONFIG_ZONE_DMA
+	"DMA",
+	#endif 
+	"DIMM1",
 	#if CONFIG_MAX_NR_DIMMS > 1
 	 "DIMM2",
 	#endif
@@ -1837,6 +1845,8 @@ zonelist_scan:
 
 	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
 		z = dimm_zoneref_list[priority_index];
+		if (z->zone_idx > high_zoneidx) //This should only happen for DMA or DMA32 requests, if supported
+			continue; //Move to the next lowest-power DIMM
 		zone = z->zone;	
 
 #else
@@ -2675,8 +2685,29 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	get_mems_allowed();
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+
+	preferred_zone = NULL; //Use as a flag.
+
+	#ifdef CONFIG_ZONE_DMA
+	if (high_zoneidx == ZONE_DMA) //If we want DMA, prefer DMA zone.
+		preferred_zone = zonelist->_zonerefs[ZONE_DMA].zone;
+	#endif
+
+	#ifdef CONFIG_ZONE_DMA32
+	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
+		for (iter = 0; iter < nr_dimms; iter++) //Find lowest-power DMA32-compatible zone
+			if (dimm_zoneref_list[iter]->zone_idx <= high_zoneidx) {
+				preferred_zone = dimm_zoneref_list[iter]->zone;
+				break;
+			}
+		}
 	
-	preferred_zone = dimm_zoneref_list[0]->zone; //Get the highest priority DIMM
+	if (unlikely(iter == nr_dimms)) //No DMA32 match, this is a bug
+		printk(KERN_WARNING "<MWG> DMA32 request did not find a suitable DIMM zone!\n");
+	#endif
+
+	if (!preferred_zone)
+		preferred_zone = dimm_zoneref_list[0]->zone; //Get the highest priority DIMM
 #else	
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,

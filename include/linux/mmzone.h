@@ -50,7 +50,9 @@
 		for (type = 0; type < MIGRATE_TYPES; type++)
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+
 extern unsigned int nr_dimms;
+extern enum zone_type max_dimm_zone_for_dma32;
 #endif
 
 extern int page_group_by_mobility_disabled;
@@ -218,6 +220,9 @@ struct per_cpu_pageset {
 
 enum zone_type {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+	#ifdef CONFIG_ZONE_DMA
+	ZONE_DMA, //We need to support this for legacy hardware. DMA32 does not need an explicit zone as long as all DIMM zones are < 4GB each
+	#endif
 	ZONE_DIMM1,
 	#if CONFIG_MAX_NR_DIMMS > 1
 	ZONE_DIMM2,
@@ -843,7 +848,11 @@ static inline int is_normal(struct zone *zone)
 static inline int is_dma32(struct zone *zone)
 {
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-	return 0;
+	#ifdef CONFIG_ZONE_DMA32
+		return zone <= zone->zone_pgdat->node_zones + max_dimm_zone_for_dma32; 
+	#else
+		return 0;
+	#endif
 #elif defined(CONFIG_ZONE_DMA32)
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
 #else
@@ -853,9 +862,7 @@ static inline int is_dma32(struct zone *zone)
 
 static inline int is_dma(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-	return 0;
-#elif defined(CONFIG_ZONE_DMA)
+#ifdef CONFIG_ZONE_DMA //MWG
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
 #else
 	return 0;
