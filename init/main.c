@@ -85,7 +85,7 @@
 
 unsigned int nr_dimms = CONFIG_DEF_NR_DIMMS;
 unsigned int dimm_size_mbytes = CONFIG_DEF_DIMM_SIZE_MBYTES;
-enum zone_type max_dimm_zone_for_dma32;
+enum zone_type max_dimm_zone_for_dma32 = ZONE_DIMM1+CONFIG_DEF_NR_DIMMS-1;
 enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
 struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
 

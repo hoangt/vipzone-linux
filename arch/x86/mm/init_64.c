@@ -644,11 +644,10 @@ void __init paging_init(void)
 	#endif
 	
 	#ifdef CONFIG_ZONE_DMA32
-	if (unlikely((dimm_size_mbytes << 20) > (4<<30))) //Check to make sure DIMM sizes are smaller than DMA32 address space.
+	if (unlikely((dimm_size_mbytes > 4096))) //Check to make sure DIMM sizes are smaller than DMA32 address space.
 		printk(KERN_WARNING "<MWG> DIMM size exceeds 4GB -- DMA32 may not work correctly!\n");
-
-	max_dimm_zone_for_dma32 = (4<<30)/(dimm_size_mbytes << 20)+ZONE_DIMM1-1; //DMA32 can never address more than 4GB. Compute the highest DIMM zone below this cap.	
-	printk(KERN_INFO "<MWG> Maximum DIMM zone allowed for DMA32 allocations: DIMM%d\n", max_dimm_zone_for_dma32);
+	max_dimm_zone_for_dma32 = 4096/dimm_size_mbytes+ZONE_DIMM1-1; //DMA32 can never address more than 4GB. Compute the highest DIMM zone below this cap.	
+	printk(KERN_INFO "<MWG> Maximum DIMM zone allowed for DMA32 allocations: zone %u (DIMM %u)\n", max_dimm_zone_for_dma32, max_dimm_zone_for_dma32+1);
 	#else
 	max_dimm_zone_for_dma32 = ZONE_DIMM1; //Unused placeholder.
 	#endif

@@ -850,7 +850,7 @@ static inline int is_dma32(struct zone *zone)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	#ifdef CONFIG_ZONE_DMA32
 		return zone <= zone->zone_pgdat->node_zones + max_dimm_zone_for_dma32; 
-	#else
+	#else 
 		return 0;
 	#endif
 #elif defined(CONFIG_ZONE_DMA32)
@@ -863,6 +863,7 @@ static inline int is_dma32(struct zone *zone)
 static inline int is_dma(struct zone *zone)
 {
 #ifdef CONFIG_ZONE_DMA //MWG
+	
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
 #else
 	return 0;

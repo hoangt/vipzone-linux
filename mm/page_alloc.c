@@ -2470,7 +2470,7 @@ __alloc_pages_slowpath_mwgstat(gfp_t gfp_mask, unsigned int order,
 	unsigned long pages_reclaimed = 0;
 	unsigned long did_some_progress;
 	bool sync_migration = false;
-
+	int i = 0;
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
 	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
@@ -2512,7 +2512,28 @@ restart:
 	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 
-		preferred_zone = dimm_zoneref_list[0]->zone;
+	preferred_zone = NULL; //Use as a flag.
+
+	#ifdef CONFIG_ZONE_DMA
+	if (high_zoneidx == ZONE_DMA) //If we want DMA, prefer DMA zone.
+		preferred_zone = zonelist->_zonerefs[ZONE_DMA].zone;
+	#endif
+
+	#ifdef CONFIG_ZONE_DMA32
+	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
+		for (i = 0; i < nr_dimms; i++) //Find lowest-power DMA32-compatible zone
+			if (dimm_zoneref_list[i]->zone_idx <= high_zoneidx) {
+				preferred_zone = dimm_zoneref_list[i]->zone;
+				break;
+			}
+		}
+	
+	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
+		printk(KERN_WARNING "<MWG> DMA32 request did not find a suitable DIMM zone!\n");
+	#endif 
+
+	if (!preferred_zone)
+		preferred_zone = dimm_zoneref_list[0]->zone; //Get the highest priority DIMM
 #else
 		first_zones_zonelist(zonelist, high_zoneidx, NULL,
 					&preferred_zone);
@@ -2662,6 +2683,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+	int i = 0;	
 	static unsigned long iter = 0;
 #endif
 
@@ -2695,9 +2717,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	#ifdef CONFIG_ZONE_DMA32
 	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
-		for (iter = 0; iter < nr_dimms; iter++) //Find lowest-power DMA32-compatible zone
-			if (dimm_zoneref_list[iter]->zone_idx <= high_zoneidx) {
-				preferred_zone = dimm_zoneref_list[iter]->zone;
+		for (i = 0; i < nr_dimms; i++) //Find lowest-power DMA32-compatible zone
+			if (dimm_zoneref_list[i]->zone_idx <= high_zoneidx) {
+				preferred_zone = dimm_zoneref_list[i]->zone;
 				break;
 			}
 		}
@@ -2740,6 +2762,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+	
 	if (iter % 50000 == 0 && preferred_zone && finalZone)
 		printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
 	
