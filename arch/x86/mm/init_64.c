@@ -634,15 +634,18 @@ void __init paging_init(void)
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
+	
 	while (page_size > 1) { //MWG: We do this to avoid overflow when computing the max_zone_pfns.
 		page_size /= 2;
 		page_size_order++;
 	}
 	
+	printk(KERN_INFO "<MWG> Made it\n");
+	
 	#ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN; //No explicit DMA32 zone.
 	#endif
-	
+
 	#ifdef CONFIG_ZONE_DMA32
 	if (unlikely((dimm_size_mbytes > 4096))) //Check to make sure DIMM sizes are smaller than DMA32 address space.
 		printk(KERN_WARNING "<MWG> DIMM size exceeds 4GB -- DMA32 may not work correctly!\n");
@@ -680,11 +683,12 @@ void __init paging_init(void)
 	printk(KERN_INFO "<MWG> We have specified (through config) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
 	printk(KERN_INFO "<MWG> DIMM zone priorities:");
 	for (i = 0; i < CONFIG_MAX_NR_DIMMS-1; i++) 
-		printk(KERN_INFO " zone %d (DIMM %d) -->", __dimm_zone_ordering[i], __dimm_zone_ordering[i]+1);
-	printk(KERN_INFO " zone %d (DIMM %d)\n", __dimm_zone_ordering[i], __dimm_zone_ordering[i]+1);
+		printk(KERN_INFO " DIMM %d -->", __dimm_zone_ordering[i]+1);
+	printk(KERN_INFO " DIMM %d\n", __dimm_zone_ordering[i]+1);
 	for (i = ZONE_DIMM1; i < nr_dimms+ZONE_DIMM1; i++)
 		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 #endif
+	BUG();
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 

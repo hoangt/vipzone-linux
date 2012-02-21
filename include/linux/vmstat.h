@@ -161,9 +161,8 @@ static inline unsigned long node_page_state(int node,
 	unsigned long retval = 0;
 	int i = 0;
 	
-	for (i = 0; i < nr_dimms; i++)
+	for (i = 0; i < MAX_NR_ZONES; i++)
 		retval += zone_page_state(&zones[i], item);
-	retval += zone_page_state(&zones[ZONE_MOVABLE], item);
 	return retval;
 #else
 	return

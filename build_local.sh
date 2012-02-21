@@ -10,8 +10,8 @@ echo '>>>>> Updating initramfs...'
 sudo update-initramfs -c -k 3.2.1-MWG+
 echo '>>>>> Cleaning up...'
 sudo rm /boot/*.old
-#echo '>>>>> Updating grub...'
-#sudo update-grub
+echo '>>>>> Updating grub...'
+sudo update-grub
 echo '>>>>> Building memallocator test program...'
 gcc ../memallocator/memallocator.c -o ../memallocator/memallocator
 echo '>>>>> Done!'

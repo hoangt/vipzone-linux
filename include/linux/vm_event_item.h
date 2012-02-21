@@ -20,9 +20,108 @@
 #endif
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
-#define DIMM1_ZONE(xx) xx##_DIMM1,
-#define DIMM2_ZONE(xx) xx##_DIMM2
-#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) HIGHMEM_ZONE(xx) , xx##_MOVABLE
+		#define DIMM1_ZONE(xx) xx##_DIMM1,
+	#if CONFIG_MAX_NR_DIMMS > 1
+		#define DIMM2_ZONE(xx) xx##_DIMM2,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 2
+		#define DIMM3_ZONE(xx) xx##_DIMM3,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 3
+		#define DIMM4_ZONE(xx) xx##_DIMM4,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 4
+		#define DIMM5_ZONE(xx) xx##_DIMM5,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 5
+		#define DIMM6_ZONE(xx) xx##_DIMM6,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 6
+		#define DIMM7_ZONE(xx) xx##_DIMM7,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 7
+		#define DIMM8_ZONE(xx) xx##_DIMM8,
+	#endif
+	#if CONFIG_MAX_NR_DIMMS > 8
+		#error Too many DIMMs configured.
+	#endif
+	
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ZONE_DMA32)
+
+	//DMA enabled
+	#if CONFIG_MAX_NR_DIMMS == 1
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS == 2
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS == 3
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 4
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 5
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 6
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) DIMM6_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS == 7 
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) DIMM6_ZONE(xx) DIMM7_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 8 
+		#define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) DIMM6_ZONE(xx) DIMM7_ZONE(xx) DIMM8_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_DEF_NR_DIMMS > 8
+		#error Too many DIMMs configured.
+	#endif
+#else //DMA disabled
+	#if CONFIG_MAX_NR_DIMMS == 1
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS == 2
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS == 3
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 4
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 5
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 6
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) DIMM6_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS == 7 
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) DIMM6_ZONE(xx) DIMM7_ZONE(xx) xx##_MOVABLE
+	#endif
+
+	#if CONFIG_MAX_NR_DIMMS == 8 
+		#define FOR_ALL_ZONES(xx) DIMM1_ZONE(xx) DIMM2_ZONE(xx) DIMM3_ZONE(xx) DIMM4_ZONE(xx) DIMM5_ZONE(xx) DIMM6_ZONE(xx) DIMM7_ZONE(xx) DIMM8_ZONE(xx) xx##_MOVABLE
+	#endif
+	
+	#if CONFIG_MAX_NR_DIMMS > 8
+		#error Too many DIMMs configured.
+	#endif
+#endif
+
 
 #else
 #define FOR_ALL_ZONES(xx) DMA_ZONE(xx) DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx) , xx##_MOVABLE

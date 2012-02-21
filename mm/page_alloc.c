@@ -3168,6 +3168,7 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 	int i; //MWG
 	int j; //MWG
 	enum zone_type zidx; //MWG
+	int flag;
 
 	BUG_ON(zone_type >= MAX_NR_ZONES);
 	zone_type++;
@@ -3187,10 +3188,19 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 	
 	printk(KERN_INFO "<MWG> Constructing dimm_zoneref_list[] for prioritizing DIMM allocations.\n");
 	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_zoneref_list
+		flag = 0;
 		zidx = __dimm_zone_ordering[i];
-		for (j=0; j < nr_dimms && zidx != zonelist->_zonerefs[j].zone_idx; j++); //Locate the zone in the zonelist with matching zone_type.
-		dimm_zoneref_list[i] = &(zonelist->_zonerefs[j]);
-		printk(KERN_INFO "<MWG> dimm_zoneref_list[%d]: ZONE_%s\n", i, dimm_zoneref_list[i]->zone->name);
+		for (j=ZONE_DIMM1; j < ZONE_DIMM1+nr_dimms; j++)
+			if (zidx == zonelist->_zonerefs[j].zone_idx) {
+				dimm_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
+				printk(KERN_INFO "<MWG> dimm_zoneref_list[%d]: ZONE_%s\n", i, dimm_zoneref_list[i]->zone->name);
+				flag = 1;
+				break;
+			}
+		if (unlikely(!flag)) {
+			printk(KERN_WARNING "<MWG> build_zonelists_node(): Failed to locate matching zone for __dimm_zone_ordering[%d].\n", i);
+			BUG();
+		}
 	}	
 #endif
 	return nr_zones;
