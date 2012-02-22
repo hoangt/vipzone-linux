@@ -3181,7 +3181,6 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 				&zonelist->_zonerefs[nr_zones++]);
 			check_highest_zone(zone_type);
 		}
-
 	} while (zone_type);
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
@@ -3190,7 +3189,7 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_zoneref_list
 		flag = 0;
 		zidx = __dimm_zone_ordering[i];
-		for (j=ZONE_DIMM1; j < ZONE_DIMM1+nr_dimms; j++)
+		for (j=0; j < nr_dimms+ZONE_DIMM1; j++)
 			if (zidx == zonelist->_zonerefs[j].zone_idx) {
 				dimm_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
 				printk(KERN_INFO "<MWG> dimm_zoneref_list[%d]: ZONE_%s\n", i, dimm_zoneref_list[i]->zone->name);
@@ -3201,7 +3200,7 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 			printk(KERN_WARNING "<MWG> build_zonelists_node(): Failed to locate matching zone for __dimm_zone_ordering[%d].\n", i);
 			BUG();
 		}
-	}	
+	}
 #endif
 	return nr_zones;
 }
