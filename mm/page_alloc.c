@@ -2529,7 +2529,7 @@ restart:
 		}
 	
 	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
-		printk(KERN_WARNING "<MWG> DMA32 request did not find a suitable DIMM zone!\n");
+		printk(KERN_WARNING "<MWG> alloc_pages_slowpath_mwgstat(): DMA32 request did not find a suitable DIMM zone!\n");
 	#endif 
 
 	if (!preferred_zone)
@@ -2724,7 +2724,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 			}
 		}
 	
-	if (unlikely(iter == nr_dimms)) //No DMA32 match, this is a bug
+	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
 		printk(KERN_WARNING "<MWG> DMA32 request did not find a suitable DIMM zone!\n");
 	#endif
 
