@@ -19,8 +19,8 @@ cp ../linux-3.2.1-vanilla/.config ~/Dropbox/mwg_research/atombuild/.config-vanil
 echo '>>>>> Copying vanilla modules...'
 cd ../linux-3.2.1-vanilla/
 make modules_install INSTALL_MOD_PATH='/home/mark/kerneldev'
-rm ~/kerneldev/lib/modules/3.2.1-MWG+/build
-rm ~/kerneldev/lib/modules/3.2.1-MWG+/source
+rm ~/kerneldev/lib/modules/3.2.1-MWG/build
+rm ~/kerneldev/lib/modules/3.2.1-MWG/source
 cp -R ~/kerneldev/lib/modules/ ~/Dropbox/mwg_research/atombuild/
 mv ~/Dropbox/mwg_research/atombuild/modules/ ~/Dropbox/mwg_research/atombuild/modules-vanilla/
 rm -rf ~/kerneldev/lib
