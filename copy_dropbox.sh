@@ -27,8 +27,8 @@ rm -rf ~/kerneldev/lib
 cd ../linux-3.2.1-MWG/
 echo '>>>>> Copying install script...'
 cp atom_install.sh ~/Dropbox/mwg_research/atombuild/
-cp atom_install_vanilla.sh ~/Dropbox/mwg_research/atombuild/
-echo '>>>>> Compiling and copying memallocator test program...'
-gcc ../memallocator/memallocator.c -o ../memallocator/memallocator
+echo '>>>>> Copying memallocator test program...'
 cp ../memallocator/memallocator ~/Dropbox/mwg_research/atombuild/
+echo '>>>>> Copying memtest86-3.5b-MWG...'
+cp ../memtest86-3.5b-MWG/memtest.bin ~/Dropbox/mwg_research/atombuild/
 echo '>>>>> Done!'

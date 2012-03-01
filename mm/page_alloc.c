@@ -2763,9 +2763,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	
-	if (iter % 50000 == 0 && preferred_zone && finalZone)
-		printk(KERN_DEBUG "<MWG> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
-	
+	if (iter % 50000 == 0 && preferred_zone && finalZone) {
+		printk(KERN_DEBUG "<MWG> Finished 10k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
+		if (gfp_mask & __GFP_DMA32)
+			printk(KERN_DEBUG "<MWG> ----- This last page was a DMA32 request.\n");
+	}
 	iter++;
 #endif
 	return page;
