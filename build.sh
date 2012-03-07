@@ -14,8 +14,8 @@ make
 echo '>>>>> Installing memtest86-3.5b-MWG...'
 sudo cp memtest.bin /boot/memtest86+.bin
 cd ../linux-3.2.1-MWG
-echo '>>>>> Updating GRUB...'
-sudo update-grub
+#echo '>>>>> Updating GRUB...'
+#sudo update-grub
 echo '>>>>> Compiling memallocator...'
 cd ../memallocator
 gcc memallocator.c -o memallocator

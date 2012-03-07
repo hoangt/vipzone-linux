@@ -667,7 +667,8 @@ void __init paging_init(void)
 	//MWG: Init the DIMM zone priorities	
 	for (i = 0; i < CONFIG_MAX_NR_DIMMS; i++) {
 		if (i < nr_dimms) //in the usable range
-			__dimm_zone_ordering[i] = ZONE_DIMM1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
+			//__dimm_zone_ordering[i] = ZONE_DIMM1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
+			__dimm_zone_ordering[i] = ZONE_DIMM1+i;
 		else
 			__dimm_zone_ordering[i] = ZONE_DIMM1; //We can support more DIMMs than present. For these slots, just put the lowest DIMM. Note that this *should* not be checked, this is for safety.
 	}

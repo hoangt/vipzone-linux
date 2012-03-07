@@ -18,6 +18,6 @@ echo '>>>>> Updating initramfs...'
 sudo update-initramfs -c -k 3.2.1-MWG+
 echo '>>>>> Installing memtest86-3.5b-MWG...'
 sudo cp memtest.bin /boot/memtest86+.bin
-echo '>>>>> Updating grub...'
-sudo update-grub
+#echo '>>>>> Updating grub...'
+#sudo update-grub
 echo '>>>>> Done!'
