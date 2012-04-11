@@ -86,14 +86,18 @@
 unsigned int nr_dimms = CONFIG_DEF_NR_DIMMS;
 unsigned int dimm_size_mbytes = CONFIG_DEF_DIMM_SIZE_MBYTES;
 enum zone_type max_dimm_zone_for_dma32 = ZONE_DIMM1;
-enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
-struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
+enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_DIMMS];
+enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_DIMMS];
+struct zoneref *dimm_write_zoneref_list[CONFIG_MAX_NR_DIMMS];
+struct zoneref *dimm_read_zoneref_list[CONFIG_MAX_NR_DIMMS];
 
 EXPORT_SYMBOL(nr_dimms);
 EXPORT_SYMBOL(dimm_size_mbytes);
 EXPORT_SYMBOL(max_dimm_zone_for_dma32);
-EXPORT_SYMBOL(__dimm_zone_ordering);
-EXPORT_SYMBOL(dimm_zoneref_list);
+EXPORT_SYMBOL(__dimm_write_zone_ordering);
+EXPORT_SYMBOL(__dimm_read_zone_ordering);
+EXPORT_SYMBOL(dimm_write_zoneref_list);
+EXPORT_SYMBOL(dimm_read_zoneref_list);
 #endif
 
 static int kernel_init(void *);

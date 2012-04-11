@@ -82,8 +82,10 @@ EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 
-extern enum zone_type __dimm_zone_ordering[CONFIG_MAX_NR_DIMMS];
-extern struct zoneref *dimm_zoneref_list[CONFIG_MAX_NR_DIMMS];
+extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_DIMMS];
+extern enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_DIMMS];
+extern struct zoneref *dimm_write_zoneref_list[CONFIG_MAX_NR_DIMMS];
+extern struct zoneref *dimm_read_zoneref_list[CONFIG_MAX_NR_DIMMS];
 extern enum zone_type max_dimm_zone_for_dma32;
 
 #endif
@@ -1844,7 +1846,7 @@ zonelist_scan:
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 
 	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
-		z = dimm_zoneref_list[priority_index];
+		z = dimm_write_zoneref_list[priority_index];
 		if (z->zone_idx > high_zoneidx) //This should only happen for DMA or DMA32 requests, if supported
 			continue; //Move to the next lowest-power DIMM
 		zone = z->zone;	
@@ -2522,8 +2524,8 @@ restart:
 	#ifdef CONFIG_ZONE_DMA32
 	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
 		for (i = 0; i < nr_dimms; i++) //Find lowest-power DMA32-compatible zone
-			if (dimm_zoneref_list[i]->zone_idx <= high_zoneidx) {
-				preferred_zone = dimm_zoneref_list[i]->zone;
+			if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
+				preferred_zone = dimm_write_zoneref_list[i]->zone;
 				break;
 			}
 		}
@@ -2533,7 +2535,7 @@ restart:
 	#endif 
 
 	if (!preferred_zone)
-		preferred_zone = dimm_zoneref_list[0]->zone; //Get the highest priority DIMM
+		preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
 #else
 		first_zones_zonelist(zonelist, high_zoneidx, NULL,
 					&preferred_zone);
@@ -2718,8 +2720,8 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	#ifdef CONFIG_ZONE_DMA32
 	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
 		for (i = 0; i < nr_dimms; i++) //Find lowest-power DMA32-compatible zone
-			if (dimm_zoneref_list[i]->zone_idx <= high_zoneidx) {
-				preferred_zone = dimm_zoneref_list[i]->zone;
+			if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
+				preferred_zone = dimm_write_zoneref_list[i]->zone;
 				break;
 			}
 		}
@@ -2729,7 +2731,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	#endif
 
 	if (!preferred_zone)
-		preferred_zone = dimm_zoneref_list[0]->zone; //Get the highest priority DIMM
+		preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
 #else	
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,
@@ -3172,6 +3174,7 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 	enum zone_type zidx; //MWG
 	int flag;
 
+	early_printk("<MWG> Entering build_zonelists_node()...\n");
 	BUG_ON(zone_type >= MAX_NR_ZONES);
 	zone_type++;
 
@@ -3187,20 +3190,37 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 	
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	
-	printk(KERN_INFO "<MWG> Constructing dimm_zoneref_list[] for prioritizing DIMM allocations.\n");
-	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_zoneref_list
+	early_printk(KERN_INFO "<MWG> Constructing dimm_write_zoneref_list[] for prioritizing DIMM allocations.\n");
+	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_write_zoneref_list
 		flag = 0;
-		zidx = __dimm_zone_ordering[i];
+		zidx = __dimm_write_zone_ordering[i];
 		for (j=0; j < nr_dimms+ZONE_DIMM1; j++)
 			if (zidx == zonelist->_zonerefs[j].zone_idx) {
-				dimm_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
-				printk(KERN_INFO "<MWG> dimm_zoneref_list[%d]: ZONE_%s\n", i, dimm_zoneref_list[i]->zone->name);
+				dimm_write_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
+				early_printk(KERN_INFO "<MWG> dimm_write_zoneref_list[%d]: ZONE_%s\n", i, dimm_write_zoneref_list[i]->zone->name);
 				flag = 1;
 				break;
 			}
 		if (unlikely(!flag)) {
-			printk(KERN_WARNING "<MWG> build_zonelists_node(): Failed to locate matching zone for __dimm_zone_ordering[%d].\n", i);
-			BUG();
+			early_printk(KERN_WARNING "<MWG> build_zonelists_node(): Failed to locate matching zone for __dimm_write_zone_ordering[%d].\n", i);
+			//BUG();
+		}
+	}
+	
+	early_printk(KERN_INFO "<MWG> Constructing dimm_read_zoneref_list[] for prioritizing DIMM allocations.\n");
+	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_write_zoneref_list
+		flag = 0;
+		zidx = __dimm_read_zone_ordering[i];
+		for (j=0; j < nr_dimms+ZONE_DIMM1; j++)
+			if (zidx == zonelist->_zonerefs[j].zone_idx) {
+				dimm_read_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
+				early_printk(KERN_INFO "<MWG> dimm_read_zoneref_list[%d]: ZONE_%s\n", i, dimm_read_zoneref_list[i]->zone->name);
+				flag = 1;
+				break;
+			}
+		if (unlikely(!flag)) {
+			early_printk(KERN_WARNING "<MWG> build_zonelists_node(): Failed to locate matching zone for __dimm_read_zone_ordering[%d].\n", i);
+			//BUG();
 		}
 	}
 #endif
