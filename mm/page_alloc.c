@@ -3978,10 +3978,11 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	unsigned long end_pfn = start_pfn + size;
 	unsigned long pfn;
 	struct zone *z;
-
+	
+	early_printk("<MWG> memmap_init_zone() #1...\n");
 	if (highest_memmap_pfn < end_pfn - 1)
 		highest_memmap_pfn = end_pfn - 1;
-
+	//MWG: Boot bug somewhere in this loop when using more than 2 DIMMs. Perhaps is_highmem_idx()?
 	z = &NODE_DATA(nid)->node_zones[zone];
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		/*
@@ -4015,6 +4016,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		 * check here not to call set_pageblock_migratetype() against
 		 * pfn out of zone.
 		 */
+
 		if ((z->zone_start_pfn <= pfn)
 		    && (pfn < z->zone_start_pfn + z->spanned_pages)
 		    && !(pfn & (pageblock_nr_pages - 1)))
@@ -4247,20 +4249,21 @@ __meminit int init_currently_empty_zone(struct zone *zone,
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int ret;
 	ret = zone_wait_table_init(zone, size);
+	early_printk("<MWG> in init_currently_empty_zone(), zone_wait_table_init returned %lu\n", ret);
 	if (ret)
 		return ret;
 	pgdat->nr_zones = zone_idx(zone) + 1;
 
 	zone->zone_start_pfn = zone_start_pfn;
-
+	early_printk("<MWG> in init_currently_empty_zone() #1\n", ret);
 	mminit_dprintk(MMINIT_TRACE, "memmap_init",
 			"Initialising map node %d zone %lu pfns %lu -> %lu\n",
 			pgdat->node_id,
 			(unsigned long)zone_idx(zone),
 			zone_start_pfn, (zone_start_pfn + size));
-
+	early_printk("<MWG> in init_currently_empty_zone() #2\n", ret);
 	zone_init_free_lists(zone);
-
+	early_printk("<MWG> in init_currently_empty_zone() #3, done\n", ret);
 	return 0;
 }
 
@@ -4820,6 +4823,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 	pgdat->kswapd_max_order = 0;
 	pgdat_page_cgroup_init(pgdat);
 	
+	early_printk("<MWG> free_area_init_core() #1...\n");
+	
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
 		unsigned long size, realsize, memmap_pages;
@@ -4828,7 +4833,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		size = zone_spanned_pages_in_node(nid, j, zones_size);
 		realsize = size - zone_absent_pages_in_node(nid, j,
 								zholes_size);
-
+		early_printk("<MWG> free_area_init_core() #2...\n");
 		/*
 		 * Adjust realsize so that it accounts for how much memory
 		 * is used by this zone for memmap. This affects the watermark
@@ -4846,7 +4851,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 			printk(KERN_WARNING
 				"  %s zone: %lu pages exceeds realsize %lu\n",
 				zone_names[j], memmap_pages, realsize);
-
+		early_printk("<MWG> free_area_init_core() #3...\n");
 		/* Account for reserved pages */
 		if (j == 0 && realsize > dma_reserve) {
 			realsize -= dma_reserve;
@@ -4857,6 +4862,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		if (!is_highmem_idx(j))
 			nr_kernel_pages += realsize;
 		nr_all_pages += realsize;
+		early_printk("<MWG> free_area_init_core() #4...\n");
 
 		zone->spanned_pages = size;
 		zone->present_pages = realsize;
@@ -4866,12 +4872,13 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 						/ 100;
 		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
 #endif
+		early_printk("<MWG> free_area_init_core() #5...\n");
 		zone->name = zone_names[j];
 		spin_lock_init(&zone->lock);
 		spin_lock_init(&zone->lru_lock);
 		zone_seqlock_init(zone);
 		zone->zone_pgdat = pgdat;
-
+		early_printk("<MWG> free_area_init_core() #6...\n");
 		zone_pcp_init(zone);
 		for_each_lru(l)
 			INIT_LIST_HEAD(&zone->lru[l].list);
@@ -4883,15 +4890,18 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		zone->flags = 0;
 		if (!size)
 			continue;
-
+		early_printk("<MWG> free_area_init_core() #7...\n");
 		set_pageblock_order(pageblock_default_order());
 		setup_usemap(pgdat, zone, size);
 		ret = init_currently_empty_zone(zone, zone_start_pfn,
 						size, MEMMAP_EARLY);
+		early_printk("<MWG> free_area_init_core() #8 ret=%lu...\n", ret);
 		BUG_ON(ret);
+		early_printk("<MWG> free_area_init_core() #9...\n");
 		memmap_init(size, nid, j, zone_start_pfn);
 		zone_start_pfn += size;
 	}
+	early_printk("<MWG> done with free_area_init_core()...\n");
 }
 
 static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
@@ -4944,13 +4954,15 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
 	pgdat->node_start_pfn = node_start_pfn;
 	calculate_node_totalpages(pgdat, zones_size, zholes_size);
 
+	early_printk("<MWG> free_area_init_node(): pgdat = %lu, pgdat->node_id = %lu, pgdat->node_start_pfn = %lu\n", pgdat, pgdat->node_id, pgdat->node_start_pfn);
 	alloc_node_mem_map(pgdat);
+	early_printk("<MWG> alloc_node_mem_map() finished ...\n");
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
 	printk(KERN_DEBUG "free_area_init_node: node %d, pgdat %08lx, node_mem_map %08lx\n",
 		nid, (unsigned long)pgdat,
 		(unsigned long)pgdat->node_mem_map);
 #endif
-
+	early_printk("<MWG> calling free_area_init_core()...\n");
 	free_area_init_core(pgdat, zones_size, zholes_size);
 }
 
@@ -5444,6 +5456,8 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
 	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
 	find_zone_movable_pfns_for_nodes(zone_movable_pfn);
+	
+	early_printk("<MWG> free_area_init_nodes() #1...\n");
 
 	/* Print out the zone ranges */
 	printk("Zone PFN ranges:\n");
@@ -5459,6 +5473,8 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 				arch_zone_lowest_possible_pfn[i],
 				arch_zone_highest_possible_pfn[i]);
 	}
+	
+	early_printk("<MWG> free_area_init_nodes() #2...\n");
 
 	/* Print out the PFNs ZONE_MOVABLE begins at in each node */
 	printk("Movable zone start PFN for each node\n");
@@ -5473,20 +5489,30 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 		printk("  %3d: %0#10lx -> %0#10lx\n", early_node_map[i].nid,
 						early_node_map[i].start_pfn,
 						early_node_map[i].end_pfn);
-
+						
+	early_printk("<MWG> free_area_init_nodes() #3...\n");
+	
 	/* Initialise every node */
 	mminit_verify_pageflags_layout();
+	early_printk("<MWG> free_area_init_nodes() #4...\n");
 	setup_nr_node_ids();
+	early_printk("<MWG> free_area_init_nodes() #5...\n");
 	for_each_online_node(nid) {
+		early_printk("<MWG> free_area_init_nodes() looping #1...\n");
 		pg_data_t *pgdat = NODE_DATA(nid);
+		early_printk("<MWG> nid: %d, pgdat = %lu\n");
 		free_area_init_node(nid, NULL,
 				find_min_pfn_for_node(nid), NULL);
-
+		early_printk("<MWG> free_area_init_nodes() looping #2...\n");
 		/* Any memory on that node */
 		if (pgdat->node_present_pages)
 			node_set_state(nid, N_HIGH_MEMORY);
+		early_printk("<MWG> free_area_init_nodes() looping #3...\n");
 		check_for_regular_memory(pgdat);
+		early_printk("<MWG> free_area_init_nodes() looping #4...\n");
 	}
+	
+	early_printk("<MWG> free_area_init_nodes() finished...\n");
 }
 
 static int __init cmdline_parse_core(char *p, unsigned long *core)
