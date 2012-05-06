@@ -311,13 +311,17 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG: Do we need ZONES_SHIFT...? Figure out how to disable.
-	#if MAX_NR_ZONES - (CONFIG_MAX_NR_DIMMS-1) < 2 // We subtract CONFIG_MAX_NR_DIMMS-1 such that the extra DIMM enumerations are invisible to all the gfp_zone functionality, etc.
+#ifdef CONFIG_ZONE_BYDIMM
+	#if MAX_NR_ZONES < 2
 	#define ZONES_SHIFT 0
-	#elif MAX_NR_ZONES - (CONFIG_MAX_NR_DIMMS-1) <= 2
+	#elif MAX_NR_ZONES <= 2
 	#define ZONES_SHIFT 1
-	#elif MAX_NR_ZONES - (CONFIG_MAX_NR_DIMMS-1) <= 4
+	#elif MAX_NR_ZONES <= 4
 	#define ZONES_SHIFT 2
+	#elif MAX_NR_ZONES <= 8
+	#define ZONES_SHIFT 3
+	#elif MAX_NR_ZONES <= 16
+	#define ZONES_SHIFT 4
 	#else
 	#error ZONES_SHIFT -- too many zones configured adjust calculation
 	#endif

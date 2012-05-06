@@ -124,8 +124,14 @@ void __init mminit_verify_pageflags_layout(void)
 void __meminit mminit_verify_page_links(struct page *page, enum zone_type zone,
 			unsigned long nid, unsigned long pfn)
 {
+	if (page_to_nid(page) != nid)
+		early_printk("<MWG> mminit_verify_page_links(): page_to_nid(page)=%lu, nid=%lu\n", page_to_nid(page), nid);
 	BUG_ON(page_to_nid(page) != nid);
+	if (page_zonenum(page) != zone)
+		early_printk("<MWG> mminit_verify_page_links(): page_zonenum(page)=%lu, zone=%lu\n", page_zonenum(page), zone);
 	BUG_ON(page_zonenum(page) != zone);
+	if (page_to_pfn(page) != pfn)
+		early_printk("<MWG> mminit_verify_page_links(): page_to_pfn(page)=%lu, pfn=%lu\n", page_to_pfn(page), pfn);
 	BUG_ON(page_to_pfn(page) != pfn);
 }
 

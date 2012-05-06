@@ -706,9 +706,7 @@ void __init paging_init(void)
 		printk(KERN_INFO " zone %d (DIMM %d) -->", __dimm_read_zone_ordering[i], __dimm_read_zone_ordering[i]+1-ZONE_DIMM1);
 	printk(KERN_INFO " zone %d (DIMM %d)\n", __dimm_read_zone_ordering[i], __dimm_read_zone_ordering[i]+1-ZONE_DIMM1);
 #endif
-	early_printk("<MWG> Finished paging_init(),  calling the last four functions inside...\n");
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
-	early_printk("<MWG> Finished spare_memory_present_with_active_regions(), calling sparse_init()...\n");
 	sparse_init();
 
 	/*
@@ -717,11 +715,9 @@ void __init paging_init(void)
 	 *	 numa support is not compiled in, and later node_set_state
 	 *	 will not set it back.
 	 */
-	early_printk("<MWG> Calling node_clear_state()...\n");
+	 
 	node_clear_state(0, N_NORMAL_MEMORY);
-	early_printk("<MWG> Calling free_area_init_nodes()...\n");
 	free_area_init_nodes(max_zone_pfns);
-	early_printk("<MWG> Finished paging_init()...\n");
 }
 
 /*
