@@ -2671,6 +2671,59 @@ got_pg:
 }
 #endif
 
+//MWG: Under construction!
+/*
+struct zone * vipzone_choose(enum vipzone_usage, enum vipzone_priority, bool need_dma32, enum zone_type high_zoneidx) {
+	int i = 0;
+	
+	if (need_dma32) //Constrain DMA32 if necessary
+		high_zoneidx = max_dimm_zone_for_dma32;
+		
+	switch (vipzone_usage) { //Write or read?
+		case VIPZONE_WRITE:
+			switch (vipzone_priority) { //High, med, low?
+				case VIPZONE_HIGH:
+					//Get the lowest write power DIMM
+					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) 
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
+							return dimm_write_zoneref_list[i]->zone;
+					break;
+				case VIPZONE_LOW:
+					//Get the DIMM with most pages free (using the write list -- arbitrary)
+					break;
+				case VIPZONE_MED:
+				default: //default to MED
+					//Get the first (lowest possible power) DIMM in write list with >50% free
+					break;
+			}
+			break;
+		}
+			break;
+		case VIPZONE_READ:
+		default: //default to READ
+			switch (priority) { //High, med, low?
+				case VIPZONE_HIGH:
+					//Get the lowest read power DIMM
+					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) 
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) {
+							return dimm_read_zoneref_list[i]->zone;
+					break;
+				case VIPZONE_LOW:
+					//Get the DIMM with most pages free (using the write list -- arbitrary)
+					break;
+				case VIPZONE_MED:
+				default: //default to MED
+					//Get the first (lowest possible power) DIMM in read list with >50% free
+					break;
+			}
+			break;
+	}
+	
+	return NULL; //If nothing was found, out of luck for ViPZonE
+}*/
+
+
+			
 /*
  * This is the 'heart' of the zoned buddy allocator.
  */
@@ -2687,6 +2740,20 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 #ifdef CONFIG_ZONE_BYDIMM //MWG
 	int i = 0;	
 	static unsigned long iter = 0;
+	enum vipzone_priority priority = VIPZONE_MED; //PLACEHOLDER: THIS SHOULD BE A PARAMETER TO INTERFACE WITH UPPER ViPZonE
+	/*** 	USAGE:
+	 *	VIPZONE_LOW
+	 *	VIPZONE_MED
+	 *	VIPZONE_HIGH
+	 *	default: set to med (for handling cases without ViPZonE allocations)
+	 */
+	 
+	enum vipzone_usage usage = VIPZONE_READ; //PLACEHOLDER: THIS SHOULD BE A PARAMETER TO INTERFACE WITH UPPER ViPZonE
+	/***	USAGE:
+	 *	VIPZONE_WRITE
+	 *	VIPZONE_READ
+	 *	default: read
+	 */
 #endif
 
 	gfp_mask &= gfp_allowed_mask;
@@ -2719,12 +2786,13 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	#ifdef CONFIG_ZONE_DMA32
 	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
-		for (i = 0; i < nr_dimms; i++) //Find lowest-power DMA32-compatible zone
+		for (i = 0; i < nr_dimms; i++) 
 			if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
 				preferred_zone = dimm_write_zoneref_list[i]->zone;
 				break;
 			}
-		}
+		//preferred_zone = vipzone_choose(usage, priority, 1, high_zoneidx); //UNDER CONSTRUCTION
+	}
 	
 	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
 		printk(KERN_WARNING "<MWG> DMA32 request did not find a suitable DIMM zone!\n");

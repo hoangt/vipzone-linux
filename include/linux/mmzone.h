@@ -53,6 +53,17 @@
 
 extern unsigned int nr_dimms;
 extern enum zone_type max_dimm_zone_for_dma32;
+
+enum vipzone_priority {
+	VIPZONE_LOW,
+	VIPZONE_MED,
+	VIPZONE_HIGH
+};
+
+enum vipzone_usage {
+	VIPZONE_WRITE,
+	VIPZONE_READ
+};
 #endif
 
 extern int page_group_by_mobility_disabled;
