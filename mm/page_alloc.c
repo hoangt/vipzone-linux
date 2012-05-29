@@ -2659,9 +2659,7 @@ rebalance:
 nopage:
 	warn_alloc_failed(gfp_mask, order, NULL);
 	if (finalZone) //MWG
-		*finalZone = NULL;
-	return page;
-got_pg:
+		*finalZone = NULL; return page; got_pg:
 	if (kmemcheck_enabled)
 		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
 	if (finalZone) //MWG
@@ -2672,55 +2670,85 @@ got_pg:
 #endif
 
 //MWG: Under construction!
-/*
-struct zone * vipzone_choose(enum vipzone_usage, enum vipzone_priority, bool need_dma32, enum zone_type high_zoneidx) {
+struct zone * vipzone_choose(enum vipzone_usage usage, enum vipzone_priority priority, bool need_dma32, enum zone_type high_zoneidx) {
 	int i = 0;
+	struct zone *emptiest_zone = NULL; //for case VIPZONE_LOW, this will be set to the zone with the most free space
+	unsigned long most_free_space = 0; //in pages. Corresponds to the emptiest zone.
 	
 	if (need_dma32) //Constrain DMA32 if necessary
 		high_zoneidx = max_dimm_zone_for_dma32;
 		
-	switch (vipzone_usage) { //Write or read?
+	switch (usage) { //Write or read?
 		case VIPZONE_WRITE:
-			switch (vipzone_priority) { //High, med, low?
+			switch (priority) { //High, med, low?
 				case VIPZONE_HIGH:
 					//Get the lowest write power DIMM
 					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) 
-						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
 							return dimm_write_zoneref_list[i]->zone;
 					break;
 				case VIPZONE_LOW:
-					//Get the DIMM with most pages free (using the write list -- arbitrary)
+					//Get the DIMM with most pages free (arbitrarily using the write list)
+					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++)
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_write_zoneref_list[i]->zone;
+						}
+					return emptiest_zone;
 					break;
 				case VIPZONE_MED:
 				default: //default to MED
-					//Get the first (lowest possible power) DIMM in write list with >50% free
+					//Get the first (lowest possible power) DIMM in write list with >50% free. If none, return the emptiest zone.
+					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) {
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > dimm_write_zoneref_list[i]->zone->present_pages / 2)
+							return dimm_write_zoneref_list[i]->zone;	
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_write_zoneref_list[i]->zone;
+						}
+					}
+						return emptiest_zone;	
 					break;
 			}
 			break;
-		}
-			break;
+
 		case VIPZONE_READ:
 		default: //default to READ
 			switch (priority) { //High, med, low?
 				case VIPZONE_HIGH:
 					//Get the lowest read power DIMM
 					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) 
-						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) {
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
 							return dimm_read_zoneref_list[i]->zone;
 					break;
 				case VIPZONE_LOW:
-					//Get the DIMM with most pages free (using the write list -- arbitrary)
+					//Get the DIMM with most pages free (arbitrarily using the read list)
+					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++)
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_read_zoneref_list[i]->zone;
+						}
+					return emptiest_zone;
 					break;
 				case VIPZONE_MED:
 				default: //default to MED
-					//Get the first (lowest possible power) DIMM in read list with >50% free
+					//Get the first (lowest possible power) DIMM in write list with >50% free. If none, return the emptiest zone.
+					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) {
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > dimm_read_zoneref_list[i]->zone->present_pages / 2)
+							return dimm_read_zoneref_list[i]->zone;	
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_read_zoneref_list[i]->zone;
+						}
+					}
+					return emptiest_zone;	
 					break;
 			}
 			break;
 	}
 	
 	return NULL; //If nothing was found, out of luck for ViPZonE
-}*/
+}
 
 
 			
@@ -2786,12 +2814,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	#ifdef CONFIG_ZONE_DMA32
 	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
-		for (i = 0; i < nr_dimms; i++) 
+	/*	for (i = 0; i < nr_dimms; i++) 
 			if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
 				preferred_zone = dimm_write_zoneref_list[i]->zone;
 				break;
-			}
-		//preferred_zone = vipzone_choose(usage, priority, 1, high_zoneidx); //UNDER CONSTRUCTION
+			} */
+		preferred_zone = vipzone_choose(usage, priority, 1, high_zoneidx); //UNDER CONSTRUCTION
 	}
 	
 	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
@@ -2799,7 +2827,8 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	#endif
 
 	if (!preferred_zone)
-		preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
+		//preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
+		preferred_zone = vipzone_choose(usage, priority, 0, high_zoneidx);
 #else	
 	/* The preferred zone is used for statistics later */
 	first_zones_zonelist(zonelist, high_zoneidx,
