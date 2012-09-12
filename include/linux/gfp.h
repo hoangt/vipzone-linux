@@ -161,10 +161,10 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
 }
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG: We aren't using the GFP_ZONE_TABLE
+#ifdef CONFIG_VIPZONE_BACK_END //MWG: We aren't using the GFP_ZONE_TABLE
 
 extern unsigned int nr_dimms;
-extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_DIMMS];
+extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_VIPZONES];
 extern enum zone_type max_dimm_zone_for_dma32;
 
 #else 
@@ -224,7 +224,7 @@ extern enum zone_type max_dimm_zone_for_dma32;
  * ZONES_SHIFT must be <= 2 on 32 bit platforms.
  */
  
-#ifndef CONFIG_ZONE_BYDIMM //MWG: We don't need the zone table for looking up DIMMs
+#ifndef CONFIG_VIPZONE_BACK_END //MWG: We don't need the zone table for looking up DIMMs
 	#define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
@@ -262,7 +262,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 
 	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
 
-#ifdef CONFIG_ZONE_BYDIMM
+#ifdef CONFIG_VIPZONE_BACK_END
 	#ifdef CONFIG_ZONE_DMA
 	if (flags & __GFP_DMA) //Check for DMA request
 		return ZONE_DMA;

@@ -80,9 +80,9 @@ static inline void vm_events_fold_cpu(int cpu)
 
 #endif /* CONFIG_VM_EVENT_COUNTERS */
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 #define __count_zone_vm_events(item, zone, delta) \
-		__count_vm_events(item##_DIMM1 - ZONE_DIMM1 + \
+		__count_vm_events(item##_NORMAL - ZONE1 + \
 		zone_idx(zone), delta)
 #else
 #define __count_zone_vm_events(item, zone, delta) \

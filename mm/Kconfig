@@ -1,42 +1,52 @@
-config ZONE_BYDIMM
-	bool "Physical Memory Zoning by DIMM"
+config VIPZONE_BACK_END
+	bool "ViPZonE Back-End: Physical Memory-Aware Zoning"
 	depends on !HIGHMEM && EXPERIMENTAL
 	help
-	  This will enable an experimental physical page allocation scheme
-	  that divides ZONE_NORMAL into separate zones for each DIMM device
-	  in the system. The goal is to allow control of memory allocations
-	  to reduce power in the presence of DRAM variability.
+	  This enables an experimental physical page allocation scheme
+	  that replaces the traditional zoning scheme with separate zones
+	  based on the physical memory arrangement in the system. 
+	  The goal is to reduce power by making power variability-aware
+	  allocations. This scheme requires that channel interleaving be disabled
+	  in BIOS.
 	  
 	  If in doubt, select N.
 	  
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
+	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
+	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
-config MAX_NR_DIMMS
-	int "Max number of DIMMs to support"
-	depends on ZONE_BYDIMM
+config MAX_NR_VIPZONES
+	int "Max number of 'Vipzones' to support."
+	depends on VIPZONE_BACK_END
 	default "4"
 	help
-	  Specify the maximum number of DIMMs to support in the kernel, regardless of whether we actually use that many.
+	  Specify the maximum number of Vipzones (physical memory regions) to support in the kernel, regardless of whether we actually use that many.
 
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
+	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
+	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
-config DEF_NR_DIMMS
-	int "Default number of DIMMs"
-	depends on ZONE_BYDIMM
+config DEF_NR_VIPZONES
+	int "Default number of Vipzones"
+	depends on VIPZONE_BACK_END
 	default "2"
 	help
-  	  Specify the default number of physical DIMMs in the system. This can be overridden by using the "nr_dimms=" command-line parameter.
+  	  Specify the default number of Vipzones in the system. This can be overridden by using the "nr_vipzones=" command-line parameter.
 
   	  Author: Mark Gottscho <mgottscho@ucla.edu>
+	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
+	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
-config DEF_DIMM_SIZE_MBYTES
-	int "Default DIMM size in MBytes"
-	depends on ZONE_BYDIMM
+config DEF_VIPZONE_SIZE_MBYTES
+	int "Default Vipzone size in MBytes"
+	depends on VIPZONE_BACK_END
 	default "1024"
 	help
-	  Specify the default number of megabytes for each memory DIMM in the system. This can be overridden by using the "dimm_size_mbytes=" command-line parameter.
+	  Specify the default number of megabytes for each Vipzone in the system. This can be overridden by using the "vipzone_size_mbytes=" command-line parameter.
 	
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
+	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
+	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
 config SELECT_MEMORY_MODEL
 	def_bool y

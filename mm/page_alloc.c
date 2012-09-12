@@ -80,12 +80,12 @@ DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
 EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 #endif
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
-extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_DIMMS];
-extern enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_DIMMS];
-extern struct zoneref *dimm_write_zoneref_list[CONFIG_MAX_NR_DIMMS];
-extern struct zoneref *dimm_read_zoneref_list[CONFIG_MAX_NR_DIMMS];
+extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_VIPZONES];
+extern enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_VIPZONES];
+extern struct zoneref *dimm_write_zoneref_list[CONFIG_MAX_NR_VIPZONES];
+extern struct zoneref *dimm_read_zoneref_list[CONFIG_MAX_NR_VIPZONES];
 extern enum zone_type max_dimm_zone_for_dma32;
 
 #endif
@@ -159,35 +159,35 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  * don't need any ZONE_NORMAL reservation
  */
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 	#ifdef CONFIG_ZONE_DMA
 	256,
 	#endif
 	128,
-	#if CONFIG_MAX_NR_DIMMS > 1
+	#if CONFIG_MAX_NR_VIPZONES > 1
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 2
+	#if CONFIG_MAX_NR_VIPZONES > 2
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 3
+	#if CONFIG_MAX_NR_VIPZONES > 3
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 4
+	#if CONFIG_MAX_NR_VIPZONES > 4
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 5
+	#if CONFIG_MAX_NR_VIPZONES > 5
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 6
+	#if CONFIG_MAX_NR_VIPZONES > 6
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS == 8
+	#if CONFIG_MAX_NR_VIPZONES == 8
 	512,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 8
-	#error CONFIG_MAX_NR_DIMMS > 8, too many.
+	#if CONFIG_MAX_NR_VIPZONES > 8
+	#error CONFIG_MAX_NR_VIPZONES > 8, too many.
 	#endif
 #else
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
@@ -207,34 +207,34 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 EXPORT_SYMBOL(totalram_pages);
 
 static char * const zone_names[MAX_NR_ZONES] = {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	#ifdef CONFIG_ZONE_DMA
 	"DMA",
 	#endif 
-	"DIMM1",
-	#if CONFIG_MAX_NR_DIMMS > 1
-	 "DIMM2",
+	"ZONE1",
+	#if CONFIG_MAX_NR_VIPZONES > 1
+	 "ZONE2",
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 2
-	 "DIMM3",
+	#if CONFIG_MAX_NR_VIPZONES > 2
+	 "ZONE3",
+	 #endif
+	#if CONFIG_MAX_NR_VIPZONES > 3
+	 "ZONE4",
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 3
-	 "DIMM4",
+	#if CONFIG_MAX_NR_VIPZONES > 4
+	 "ZONE5",
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 4
-	 "DIMM5",
+	#if CONFIG_MAX_NR_VIPZONES > 5
+	 "ZONE6",
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 5
-	 "DIMM6",
+	#if CONFIG_MAX_NR_VIPZONES > 6
+	 "ZONE7",
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 6
-	 "DIMM7",
+	#if CONFIG_MAX_NR_VIPZONES == 8
+	 "ZONE8",
 	#endif
-	#if CONFIG_MAX_NR_DIMMS == 8
-	 "DIMM8",
-	#endif
-	#if CONFIG_MAX_NR_DIMMS > 8
-	#error CONFIG_MAX_NR_DIMMS > 8, too many.
+	#if CONFIG_MAX_NR_VIPZONES > 8
+	#error CONFIG_MAX_NR_VIPZONES > 8, too many.
 	#endif
 #else
 	#ifdef CONFIG_ZONE_DMA
@@ -1813,14 +1813,14 @@ this_zone_full:
 	return page;
 }
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
  * MWG: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
  */
 static struct page *
-get_page_from_freelist_mwgstat(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
 		struct zone *preferred_zone, int migratetype, struct zone **finalZone)
 {
@@ -1832,7 +1832,7 @@ get_page_from_freelist_mwgstat(gfp_t gfp_mask, nodemask_t *nodemask, unsigned in
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
 	int priority_index;
 #endif
@@ -1843,7 +1843,7 @@ zonelist_scan:
 	 * Scan zonelist, looking for a zone with enough free.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
 	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
 		z = dimm_write_zoneref_list[priority_index];
@@ -2062,8 +2062,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 		if (order > PAGE_ALLOC_COSTLY_ORDER)
 			goto out;
 		/* The OOM killer does not needlessly kill tasks for lowmem */
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-		if (high_zoneidx < ZONE_DIMM1)
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
+		if (high_zoneidx < ZONE1)
 #else
 		if (high_zoneidx < ZONE_NORMAL)
 #endif
@@ -2414,8 +2414,8 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-				if (high_zoneidx < ZONE_DIMM1)
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
+				if (high_zoneidx < ZONE1)
 #else
 				if (high_zoneidx < PG)
 #endif
@@ -2458,10 +2458,10 @@ got_pg:
 
 }
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
 static inline struct page *
-__alloc_pages_slowpath_mwgstat(gfp_t gfp_mask, unsigned int order,
+__alloc_pages_slowpath_vipzone(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
 	nodemask_t *nodemask, struct zone *preferred_zone,
 	int migratetype, struct zone **finalZone)
@@ -2512,7 +2512,7 @@ restart:
 	 * cpusets.
 	 */
 	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
 	preferred_zone = NULL; //Use as a flag.
 
@@ -2531,7 +2531,7 @@ restart:
 		}
 	
 	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
-		printk(KERN_WARNING "<MWG> alloc_pages_slowpath_mwgstat(): DMA32 request did not find a suitable DIMM zone!\n");
+		printk(KERN_WARNING "<MWG> alloc_pages_slowpath_vipzone(): DMA32 request did not find a suitable DIMM zone!\n");
 	#endif 
 
 	if (!preferred_zone)
@@ -2622,8 +2622,8 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-				if (high_zoneidx < ZONE_DIMM1)
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
+				if (high_zoneidx < ZONE1)
 #else
 				if (high_zoneidx < PG)
 #endif
@@ -2683,13 +2683,13 @@ struct zone * vipzone_choose(enum vipzone_usage usage, enum vipzone_priority pri
 			switch (priority) { //High, med, low?
 				case VIPZONE_HIGH:
 					//Get the lowest write power DIMM
-					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) 
+					for (i = 0; i < nr_dimms + ZONE1; i++) 
 						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
 							return dimm_write_zoneref_list[i]->zone;
 					break;
 				case VIPZONE_LOW:
 					//Get the DIMM with most pages free (arbitrarily using the write list)
-					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++)
+					for (i = 0; i < nr_dimms + ZONE1; i++)
 						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
 							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
 							emptiest_zone = dimm_write_zoneref_list[i]->zone;
@@ -2699,7 +2699,7 @@ struct zone * vipzone_choose(enum vipzone_usage usage, enum vipzone_priority pri
 				case VIPZONE_MED:
 				default: //default to MED
 					//Get the first (lowest possible power) DIMM in write list with >50% free. If none, return the emptiest zone.
-					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) {
+					for (i = 0; i < nr_dimms + ZONE1; i++) {
 						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > dimm_write_zoneref_list[i]->zone->present_pages / 2)
 							return dimm_write_zoneref_list[i]->zone;	
 						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
@@ -2717,13 +2717,13 @@ struct zone * vipzone_choose(enum vipzone_usage usage, enum vipzone_priority pri
 			switch (priority) { //High, med, low?
 				case VIPZONE_HIGH:
 					//Get the lowest read power DIMM
-					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) 
+					for (i = 0; i < nr_dimms + ZONE1; i++) 
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
 							return dimm_read_zoneref_list[i]->zone;
 					break;
 				case VIPZONE_LOW:
 					//Get the DIMM with most pages free (arbitrarily using the read list)
-					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++)
+					for (i = 0; i < nr_dimms + ZONE1; i++)
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
 							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
 							emptiest_zone = dimm_read_zoneref_list[i]->zone;
@@ -2733,7 +2733,7 @@ struct zone * vipzone_choose(enum vipzone_usage usage, enum vipzone_priority pri
 				case VIPZONE_MED:
 				default: //default to MED
 					//Get the first (lowest possible power) DIMM in write list with >50% free. If none, return the emptiest zone.
-					for (i = 0; i < nr_dimms + ZONE_DIMM1; i++) {
+					for (i = 0; i < nr_dimms + ZONE1; i++) {
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > dimm_read_zoneref_list[i]->zone->present_pages / 2)
 							return dimm_read_zoneref_list[i]->zone;	
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
@@ -2765,7 +2765,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	struct page *page;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	int i = 0;	
 	static unsigned long iter = 0;
 	enum vipzone_priority priority = VIPZONE_MED; //PLACEHOLDER: THIS SHOULD BE A PARAMETER TO INTERFACE WITH UPPER ViPZonE
@@ -2803,7 +2803,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	get_mems_allowed();
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
 	preferred_zone = NULL; //Use as a flag.
 
@@ -2842,9 +2842,9 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	/* First allocation attempt */
 	
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
-	page = get_page_from_freelist_mwgstat(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
+	page = get_page_from_freelist_vipzone(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
 #else
@@ -2853,14 +2853,14 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 			preferred_zone, migratetype);
 #endif
 	if (unlikely(!page))
-		page = __alloc_pages_slowpath_mwgstat(gfp_mask, order, //MWG
+		page = __alloc_pages_slowpath_vipzone(gfp_mask, order, //MWG
 				zonelist, high_zoneidx, nodemask,
 				preferred_zone, migratetype, &finalZone);
 	put_mems_allowed();
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 	
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	
 	if (iter % 50000 == 0 && preferred_zone && finalZone) {
 		printk(KERN_DEBUG "<MWG> Finished 10k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
@@ -3284,12 +3284,12 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 		}
 	} while (zone_type);
 	
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	
-	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_write_zoneref_list
+	for (i=0; i < CONFIG_MAX_NR_VIPZONES; i++) { //Init dimm_write_zoneref_list
 		flag = 0;
 		zidx = __dimm_write_zone_ordering[i];
-		for (j=0; j < nr_dimms+ZONE_DIMM1; j++)
+		for (j=0; j < nr_dimms+ZONE1; j++)
 			if (zidx == zonelist->_zonerefs[j].zone_idx) {
 				dimm_write_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
 				flag = 1;
@@ -3299,10 +3299,10 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 			BUG();
 	}
 	
-	for (i=0; i < CONFIG_MAX_NR_DIMMS; i++) { //Init dimm_read_zoneref_list
+	for (i=0; i < CONFIG_MAX_NR_VIPZONES; i++) { //Init dimm_read_zoneref_list
 		flag = 0;
 		zidx = __dimm_read_zone_ordering[i];
-		for (j=0; j < nr_dimms+ZONE_DIMM1; j++)
+		for (j=0; j < nr_dimms+ZONE1; j++)
 			if (zidx == zonelist->_zonerefs[j].zone_idx) {
 				dimm_read_zoneref_list[i] = &(zonelist->_zonerefs[j]); //Locate the zone in the zonelist with matching zone_type.
 				flag = 1;
@@ -3570,15 +3570,15 @@ static int default_zonelist_order(void)
 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
 			z = &NODE_DATA(nid)->node_zones[zone_type];
 			if (populated_zone(z)) {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-				if (zone_type < ZONE_DIMM1)
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
+				if (zone_type < ZONE1)
 #else
 				if (zone_type < ZONE_NORMAL)
 #endif
 					low_kmem_size += z->present_pages;
 				total_size += z->present_pages;
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-			} else if (zone_type == ZONE_DIMM1) {
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
+			} else if (zone_type == ZONE1) {
 #else
 			} else if (zone_type == ZONE_NORMAL) {
 #endif
@@ -3609,8 +3609,8 @@ static int default_zonelist_order(void)
 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
 			z = &NODE_DATA(nid)->node_zones[zone_type];
 			if (populated_zone(z)) {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
-				if (zone_type < ZONE_DIMM1)
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
+				if (zone_type < ZONE1)
 #else
 				if (zone_type < ZONE_NORMAL)
 #endif
@@ -5475,7 +5475,7 @@ out:
 /* Any regular memory on that node ? */
 static void check_for_regular_memory(pg_data_t *pgdat)
 {
-#ifdef CONFIG_HIGHMEM //MWG: This shouldn't happen. If we disable CONFIG_HIGHMEM and enable CONFIG_ZONE_BYDIMM
+#ifdef CONFIG_HIGHMEM //MWG: This shouldn't happen. If we disable CONFIG_HIGHMEM and enable CONFIG_VIPZONE_BACK_END
 	enum zone_type zone_type;
 
 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {

@@ -49,7 +49,7 @@
 	for (order = 0; order < MAX_ORDER; order++) \
 		for (type = 0; type < MIGRATE_TYPES; type++)
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
 extern unsigned int nr_dimms;
 extern enum zone_type max_dimm_zone_for_dma32;
@@ -230,34 +230,34 @@ struct per_cpu_pageset {
 #endif /* !__GENERATING_BOUNDS.H */
 
 enum zone_type {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	#ifdef CONFIG_ZONE_DMA
 	ZONE_DMA, //We need to support this for legacy hardware. DMA32 does not need an explicit zone as long as all DIMM zones are < 4GB each
 	#endif
-	ZONE_DIMM1,
-	#if CONFIG_MAX_NR_DIMMS > 1
-	ZONE_DIMM2,
+	ZONE1,
+	#if CONFIG_MAX_NR_VIPZONES > 1
+	ZONE2,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 2
-	ZONE_DIMM3,
+	#if CONFIG_MAX_NR_VIPZONES > 2
+	ZONE3,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 3
-	ZONE_DIMM4,
+	#if CONFIG_MAX_NR_VIPZONES > 3
+	ZONE4,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 4 
-	ZONE_DIMM5,
+	#if CONFIG_MAX_NR_VIPZONES > 4 
+	ZONE5,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 5
-	ZONE_DIMM6,
+	#if CONFIG_MAX_NR_VIPZONES > 5
+	ZONE6,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 6
-	ZONE_DIMM7,
+	#if CONFIG_MAX_NR_VIPZONES > 6
+	ZONE7,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS == 8
-	ZONE_DIMM8,
+	#if CONFIG_MAX_NR_VIPZONES == 8
+	ZONE8,
 	#endif
-	#if CONFIG_MAX_NR_DIMMS > 8
-	#error CONFIG_MAX_NR_DIMMS out of bound, cannot allow more than 8 DIMMs.
+	#if CONFIG_MAX_NR_VIPZONES > 8
+	#error CONFIG_MAX_NR_VIPZONES out of bound, cannot allow more than 8 DIMMs.
 	#endif
 #else
 	#ifdef CONFIG_ZONE_DMA
@@ -322,7 +322,7 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-#ifdef CONFIG_ZONE_BYDIMM
+#ifdef CONFIG_VIPZONE_BACK_END
 	#if MAX_NR_ZONES < 2
 	#define ZONES_SHIFT 0
 	#elif MAX_NR_ZONES <= 2
@@ -787,7 +787,7 @@ extern int movable_zone;
 
 static inline int zone_movable_is_highmem(void)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	return 0;
 #elif defined(CONFIG_HIGHMEM) && defined(CONFIG_ARCH_POPULATES_NODE_MAP)
 	return movable_zone == ZONE_HIGHMEM;
@@ -798,7 +798,7 @@ static inline int zone_movable_is_highmem(void)
 
 static inline int is_highmem_idx(enum zone_type idx)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	return 0;
 #elif defined(CONFIG_HIGHMEM)
 	return (idx == ZONE_HIGHMEM ||
@@ -808,16 +808,16 @@ static inline int is_highmem_idx(enum zone_type idx)
 #endif
 }
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 static inline int is_dimm_idx(enum zone_type idx)
 {
-	return (idx >= ZONE_DIMM1 && idx <= ZONE_DIMM1 + nr_dimms - 1);
+	return (idx >= ZONE1 && idx <= ZONE1 + nr_dimms - 1);
 }
 #endif
 
 static inline int is_normal_idx(enum zone_type idx)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	return 0;
 #else
 	return (idx == ZONE_NORMAL);
@@ -832,7 +832,7 @@ static inline int is_normal_idx(enum zone_type idx)
  */
 static inline int is_highmem(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	return 0;
 #elif defined(CONFIG_HIGHMEM)
 	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
@@ -844,16 +844,16 @@ static inline int is_highmem(struct zone *zone)
 #endif
 }
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 static inline int is_dimm(struct zone *zone)
 {	
-	return (zone >= zone->zone_pgdat->node_zones + ZONE_DIMM1 && zone <= zone->zone_pgdat->node_zones + ZONE_DIMM1 + nr_dimms - 1);
+	return (zone >= zone->zone_pgdat->node_zones + ZONE1 && zone <= zone->zone_pgdat->node_zones + ZONE1 + nr_dimms - 1);
 }
 #endif
 
 static inline int is_normal(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	return 0;
 #else
 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
@@ -862,7 +862,7 @@ static inline int is_normal(struct zone *zone)
 
 static inline int is_dma32(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	#ifdef CONFIG_ZONE_DMA32
 		return zone <= zone->zone_pgdat->node_zones + max_dimm_zone_for_dma32; 
 	#else 

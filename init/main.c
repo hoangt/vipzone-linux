@@ -81,15 +81,15 @@
 #include <asm/smp.h>
 #endif
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //MWG
 
-unsigned int nr_dimms = CONFIG_DEF_NR_DIMMS;
-unsigned int dimm_size_mbytes = CONFIG_DEF_DIMM_SIZE_MBYTES;
-enum zone_type max_dimm_zone_for_dma32 = ZONE_DIMM1;
-enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_DIMMS];
-enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_DIMMS];
-struct zoneref *dimm_write_zoneref_list[CONFIG_MAX_NR_DIMMS];
-struct zoneref *dimm_read_zoneref_list[CONFIG_MAX_NR_DIMMS];
+unsigned int nr_dimms = CONFIG_DEF_NR_VIPZONES;
+unsigned int dimm_size_mbytes = CONFIG_DEF_VIPZONE_SIZE_MBYTES;
+enum zone_type max_dimm_zone_for_dma32 = ZONE1;
+enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_VIPZONES];
+enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_VIPZONES];
+struct zoneref *dimm_write_zoneref_list[CONFIG_MAX_NR_VIPZONES];
+struct zoneref *dimm_read_zoneref_list[CONFIG_MAX_NR_VIPZONES];
 
 EXPORT_SYMBOL(nr_dimms);
 EXPORT_SYMBOL(dimm_size_mbytes);
