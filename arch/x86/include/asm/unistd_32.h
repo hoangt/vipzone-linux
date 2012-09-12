@@ -355,6 +355,13 @@
 #define __NR_process_vm_readv	347
 #define __NR_process_vm_writev	348
 
+#ifdef CONFIG_DANNY_MODS
+/*DANNY-MODS START*/
+#define __NR_vip_mmap		 349
+#define __NR_vip_mmap_pgoff		 350
+/*DANNY-MODS END*/
+#endif
+
 #ifdef __KERNEL__
 
 #define NR_syscalls 349

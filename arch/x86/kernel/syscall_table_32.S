@@ -348,3 +348,7 @@ ENTRY(sys_call_table)
 	.long sys_setns
 	.long sys_process_vm_readv
 	.long sys_process_vm_writev
+#ifdef CONFIG_DANNY_MODS
+	.long sys_vip_mmap /*DANNY-MODS*/
+	.long sys_vip_mmap_pgoff /*DANNY-MODS*/
+#endif CONFIG_DANNY_MODS

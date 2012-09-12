@@ -687,6 +687,15 @@ __SYSCALL(__NR_process_vm_readv, sys_process_vm_readv)
 #define __NR_process_vm_writev			311
 __SYSCALL(__NR_process_vm_writev, sys_process_vm_writev)
 
+#ifdef CONFIG_DANNY_MODS
+/*DANNY-MODS START*/
+#define __NR_vip_mmap				312
+__SYSCALL(__NR_vip_mmap, sys_vip_mmap)
+#define __NR_vip_mmap_pgoff				313
+__SYSCALL(__NR_vip_mmap_pgoff, sys_vip_mmap_pgoff)
+/*DANNY-MODS END*/
+#endif
+
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_OLD_STAT

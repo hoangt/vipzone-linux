@@ -48,6 +48,17 @@ config DEF_VIPZONE_SIZE_MBYTES
 	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
 	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
+config DANNY_MODS
+	bool "Enable/disable Danny's syscall/VM mods"
+	depends on VIPZONE_BACK_END
+	help
+	  This enables Dannys experimental changes to allow a new mmap() syscall that acts as front-end
+	  hooks into the kernel for vip_malloc(). These changes are not yet proven to work.
+
+	  Author: Luis D. Bathen <lbathen@gmail.com>
+	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
+	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
+
 config SELECT_MEMORY_MODEL
 	def_bool y
 	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL

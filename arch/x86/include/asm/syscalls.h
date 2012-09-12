@@ -65,5 +65,12 @@ long sys_arch_prctl(int, unsigned long);
 asmlinkage long sys_mmap(unsigned long, unsigned long, unsigned long,
 			 unsigned long, unsigned long, unsigned long);
 
+#ifdef CONFIG_DANNY_MODS
+/*DANNY-MODS START*/
+asmlinkage long sys_vip_mmap(unsigned long, unsigned long, unsigned long,
+			 unsigned long, unsigned long, unsigned long);
+/*DANNY-MODS END*/
+#endif
+
 #endif /* CONFIG_X86_32 */
 #endif /* _ASM_X86_SYSCALLS_H */
