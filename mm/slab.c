@@ -3700,6 +3700,8 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	trace_kmem_cache_alloc(_RET_IP_, ret,
 			       obj_size(cachep), cachep->buffer_size, flags);
 
+	//printk("kmem_cache_alloc->__cache_alloc(): allocating space with flags %u\n", (unsigned int)flags);
+	
 	return ret;
 }
 EXPORT_SYMBOL(kmem_cache_alloc);

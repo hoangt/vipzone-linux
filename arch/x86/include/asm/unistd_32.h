@@ -364,7 +364,12 @@
 
 #ifdef __KERNEL__
 
+#ifdef CONFIG_DANNY_MODS
+//MWG
+#define NR_syscalls 351
+#else
 #define NR_syscalls 349
+#endif
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

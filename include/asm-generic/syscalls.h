@@ -41,6 +41,22 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long fd, off_t pgoff);
 #endif
 
+#ifdef CONFIG_DANNY_MODS
+/* DANNY MODS START */
+//MWG
+//#ifndef sys_vip_mmap
+asmlinkage long sys_vip_mmap(unsigned long addr, unsigned long len, unsigned long prot,
+			 unsigned long flags, unsigned long fd, unsigned long off);
+//#endif
+
+//#ifndef sys_vip_mmap_pgoff
+asmlinkage long sys_vip_mmap_pgoff(unsigned long addr, unsigned long len,
+         unsigned long prot, unsigned long flags,
+         unsigned long fd, unsigned long pgoff);
+//#endif
+/* DANNY MODS STOP */
+#endif
+
 #ifndef sys_sigaltstack
 asmlinkage long sys_sigaltstack(const stack_t __user *, stack_t __user *,
 			struct pt_regs *);
