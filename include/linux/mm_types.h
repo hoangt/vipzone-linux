@@ -210,13 +210,11 @@ struct vm_area_struct {
 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 
-#ifdef CONFIG_DANNY_MODS
-	/*DANNY-MODS START */
+#ifdef CONFIG_VIPZONE_FRONT_END
 	/*Variation-aware flags - TODO: check with mark about this,
     * since we need to merge the var flags
     */
    unsigned long vflags;
-   /*DANNY-MODS END */
 #endif
 
 	struct rb_node vm_rb;
@@ -314,13 +312,11 @@ struct mm_struct {
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
 	int map_count;				/* number of VMAs */
 
-#ifdef CONFIG_DANNY_MODS
-	/*DANNY-MODS START */
+#ifdef CONFIG_VIPZONE_FRONT_END
 	/*unsigned long (*get_vip_unmapped_area) (struct file *filp,
 				unsigned long addr, unsigned long len,
 				unsigned long pgoff, unsigned long flags,
 				unsigned long vflags);*/
-	/*DANNY-MODS END */
 #endif
 
 	spinlock_t page_table_lock;		/* Protects page tables and some counters */

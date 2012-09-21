@@ -83,6 +83,10 @@ struct file_handle;
 #define __SC_DECL5(t5, a5, ...) t5 a5, __SC_DECL4(__VA_ARGS__)
 #define __SC_DECL6(t6, a6, ...) t6 a6, __SC_DECL5(__VA_ARGS__)
 
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define __SC_DECL7(t7, a7, ...) t7 a7, __SC_DECL6(__VA_ARGS__) //vipzone
+#endif
+
 #define __SC_LONG1(t1, a1) 	long a1
 #define __SC_LONG2(t2, a2, ...) long a2, __SC_LONG1(__VA_ARGS__)
 #define __SC_LONG3(t3, a3, ...) long a3, __SC_LONG2(__VA_ARGS__)
@@ -90,12 +94,20 @@ struct file_handle;
 #define __SC_LONG5(t5, a5, ...) long a5, __SC_LONG4(__VA_ARGS__)
 #define __SC_LONG6(t6, a6, ...) long a6, __SC_LONG5(__VA_ARGS__)
 
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define __SC_LONG7(t7, a7, ...) long a7, __SC_LONG6(__VA_ARGS__) //vipzone
+#endif
+
 #define __SC_CAST1(t1, a1)	(t1) a1
 #define __SC_CAST2(t2, a2, ...) (t2) a2, __SC_CAST1(__VA_ARGS__)
 #define __SC_CAST3(t3, a3, ...) (t3) a3, __SC_CAST2(__VA_ARGS__)
 #define __SC_CAST4(t4, a4, ...) (t4) a4, __SC_CAST3(__VA_ARGS__)
 #define __SC_CAST5(t5, a5, ...) (t5) a5, __SC_CAST4(__VA_ARGS__)
 #define __SC_CAST6(t6, a6, ...) (t6) a6, __SC_CAST5(__VA_ARGS__)
+
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define __SC_CAST7(t7, a7, ...) (t7) a7, __SC_CAST6(__VA_ARGS__) //vipzone
+#endif
 
 #define __SC_TEST(type)		BUILD_BUG_ON(sizeof(type) > sizeof(long))
 #define __SC_TEST1(t1, a1)	__SC_TEST(t1)
@@ -105,6 +117,10 @@ struct file_handle;
 #define __SC_TEST5(t5, a5, ...)	__SC_TEST(t5); __SC_TEST4(__VA_ARGS__)
 #define __SC_TEST6(t6, a6, ...)	__SC_TEST(t6); __SC_TEST5(__VA_ARGS__)
 
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define __SC_TEST7(t7, a7, ...)	__SC_TEST(t7); __SC_TEST6(__VA_ARGS__) //vipzone
+#endif
+
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define __SC_STR_ADECL1(t, a)		#a
 #define __SC_STR_ADECL2(t, a, ...)	#a, __SC_STR_ADECL1(__VA_ARGS__)
@@ -113,12 +129,20 @@ struct file_handle;
 #define __SC_STR_ADECL5(t, a, ...)	#a, __SC_STR_ADECL4(__VA_ARGS__)
 #define __SC_STR_ADECL6(t, a, ...)	#a, __SC_STR_ADECL5(__VA_ARGS__)
 
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define __SC_STR_ADECL7(t, a, ...)	#a, __SC_STR_ADECL6(__VA_ARGS__) //vipzone
+#endif
+
 #define __SC_STR_TDECL1(t, a)		#t
 #define __SC_STR_TDECL2(t, a, ...)	#t, __SC_STR_TDECL1(__VA_ARGS__)
 #define __SC_STR_TDECL3(t, a, ...)	#t, __SC_STR_TDECL2(__VA_ARGS__)
 #define __SC_STR_TDECL4(t, a, ...)	#t, __SC_STR_TDECL3(__VA_ARGS__)
 #define __SC_STR_TDECL5(t, a, ...)	#t, __SC_STR_TDECL4(__VA_ARGS__)
 #define __SC_STR_TDECL6(t, a, ...)	#t, __SC_STR_TDECL5(__VA_ARGS__)
+
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define __SC_STR_TDECL7(t, a, ...)	#t, __SC_STR_TDECL6(__VA_ARGS__) //vipzone
+#endif
 
 extern struct ftrace_event_class event_class_syscall_enter;
 extern struct ftrace_event_class event_class_syscall_exit;
@@ -197,6 +221,10 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 #define SYSCALL_DEFINE4(name, ...) SYSCALL_DEFINEx(4, _##name, __VA_ARGS__)
 #define SYSCALL_DEFINE5(name, ...) SYSCALL_DEFINEx(5, _##name, __VA_ARGS__)
 #define SYSCALL_DEFINE6(name, ...) SYSCALL_DEFINEx(6, _##name, __VA_ARGS__)
+
+#ifdef CONFIG_VIPZONE_FRONT_END
+#define SYSCALL_DEFINE7(name, ...) SYSCALL_DEFINEx(7, _##name, __VA_ARGS__) //vipzone
+#endif
 
 #ifdef CONFIG_PPC64
 #define SYSCALL_ALIAS(alias, name)					\
@@ -837,20 +865,15 @@ asmlinkage long sys_mmap_pgoff(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long pgoff);
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
-//#ifndef sys_vip_mmap
+#ifdef CONFIG_VIPZONE_FRONT_END
+//extra parameter for vip_flags
 asmlinkage long sys_vip_mmap(unsigned long addr, unsigned long len, unsigned long prot,
-			 unsigned long flags, unsigned long fd, unsigned long off);
-//#endif
+			 unsigned long flags, unsigned long vip_flags, unsigned long fd, unsigned long off);
 
-//#ifndef sys_vip_mmap_pgoff
+//extra parameter for vip_flags
 asmlinkage long sys_vip_mmap_pgoff(unsigned long addr, unsigned long len,
-         unsigned long prot, unsigned long flags,
+         unsigned long prot, unsigned long flags, unsigned long vip_flags,
          unsigned long fd, unsigned long pgoff);
-//#endif
-
-/*DANNY-MODS END*/
 #endif
 
 asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);

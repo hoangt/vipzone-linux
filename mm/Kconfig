@@ -1,5 +1,5 @@
 config VIPZONE_BACK_END
-	bool "ViPZonE Back-End: Physical Memory-Aware Zoning"
+	bool "ViPZonE: OS-Level Memory Variability-Driven Physical Address Zoning for Energy Savings"
 	depends on !HIGHMEM && EXPERIMENTAL
 	help
 	  This enables an experimental physical page allocation scheme
@@ -8,6 +8,9 @@ config VIPZONE_BACK_END
 	  The goal is to reduce power by making power variability-aware
 	  allocations. This scheme requires that channel interleaving be disabled
 	  in BIOS.
+
+	  This only enables the back-end for ViPZonE. In order to get the front-end hooks
+	  for userspace and the VM system, please enable VIPZONE_FRONT_END.
 	  
 	  If in doubt, select N.
 	  
@@ -48,14 +51,16 @@ config DEF_VIPZONE_SIZE_MBYTES
 	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
 	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
-config DANNY_MODS
-	bool "Enable/disable Danny's syscall/VM mods"
+config VIPZONE_FRONT_END 
+	bool "Expose front end of ViPZonE: syscalls, VM upper-layers"
 	depends on VIPZONE_BACK_END
 	help
-	  This enables Dannys experimental changes to allow a new mmap() syscall that acts as front-end
-	  hooks into the kernel for vip_malloc(). These changes are not yet proven to work.
+	  This enables a new vip_mmap() syscall that acts as front-end
+	  hooks into the kernel for ViPZonE. Requires the ViPZonE physical page allocator to function.
 
-	  Author: Luis D. Bathen <lbathen@gmail.com>
+	  If in doubt, select N.
+
+	  Authors: Mark Gottscho <mgottscho@ucla.edu> and Luis D. Bathen <lbathen@gmail.com>
 	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
 	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 

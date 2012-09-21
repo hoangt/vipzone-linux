@@ -16,19 +16,20 @@
 #define MCL_CURRENT	1		/* lock all current mappings */
 #define MCL_FUTURE	2		/* lock all future mappings */
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
-/* vipzone flags = 3 MSB in a byte */ 
-#ifndef _VIP_ZONE_FLAGS
-#define _VIP_F_READ      0x0010 /*00x1 0000 */
-#define _VIP_F_WRITE     0x0040 /*01x0 0000 */
-#define _VIP_F_HI_UTIL   0x0050 /*01x1 0000 */
-#define _VIP_F_MI_UTIL   0x0080 /*10x0 0000 */
-#define _VIP_F_LO_UTIL   0x0090 /*10x1 0000 */
-#define _VIP_MASK        0x00d0 /*1101 0000 in binary*/
-#define _VIP_F_SHIFT     8 /*not sure if needed*/
+
+#ifdef CONFIG_VIPZONE_FRONT_END
+
+#define _VIP_TYP_READ         0x0000 // xxxx xxx0 -- default
+#define _VIP_TYP_WRITE        0x0001 // xxxx xxx1
+#define _VIP_TYP_MASK         0x0001 // 0000 0001 -- MASK
+
+#define _VIP_UTIL_LO          0x0000 // xx00 xxxx -- default
+#define _VIP_UTIL_MED         0x0010 // xx01 xxxx 
+#define _VIP_UTIL_HI          0x0020 // xx10 xxxx
+#define _VIP_UTIL_BAD         0x0030 // xx11 xxxx -- ILLEGAL
+#define _VIP_UTIL_MASK        0x0030 // 0011 0000 -- MASK
+
 #endif
-/*DANNY-MODS END*/
-#endif
+
 
 #endif /* __ASM_GENERIC_MMAN_H */

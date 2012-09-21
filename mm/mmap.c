@@ -1077,11 +1077,10 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 }
 EXPORT_SYMBOL(do_mmap_pgoff);
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
+#ifdef CONFIG_VIPZONE_FRONT_END
 unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			unsigned long len, unsigned long prot,
-			unsigned long flags, unsigned long pgoff)
+			unsigned long flags, unsigned long vip_flags, unsigned long pgoff)
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
@@ -1090,16 +1089,11 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	int order = 0;
 	unsigned long reqprot = prot;
 	
-	unsigned long vflags = flags & _VIP_MASK;
-    unsigned long rflags = flags & ~(_VIP_MASK);
-	
+	unsigned long vip_typ_flags = vip_flags & _VIP_TYP_MASK;	
+	unsigned long vip_util_flags = vip_flags & _VIP_UTIL_MASK;	
+
 	unsigned long *pages_start;
 	
-	printk("vip_mmap_pgoff [4]: flags=0x%lx, vflags=0x%lx, rflags=0x%lx\n", flags, vflags, rflags);
-	
-	flags = rflags;
-	
-	printk("vip_mmap_pgoff [5]: flags=0x%lx, vflags=0x%lx, rflags=0x%lx\n", flags, vflags, rflags);
 	
 	// lock the vm space?
 	//flags = flags | VM_LOCKED;
@@ -1237,7 +1231,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
 	if (error)
 	{
-		printk("vip_mmap_pgoff [6]: ERROR = %u, flags=0x%lx, vflags=0x%lx, rflags=0x%lx\n", error, flags, vflags, rflags);
+		printk(KERN_WARNING "<MWG> vip_mmap_pgoff [6]: ERROR = %u, flags=0x%lx, vip_flags=0x%lx, vip_typ_flags=0x%lx, vip_util_flags=0x%lx\n", error, flags, vip_flags, vip_typ_flags, vip_util_flags);
 		return error;
 	}
 	
@@ -1250,10 +1244,9 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	//addr = (unsigned long)pages_start;
 	//pgoff = ((unsigned long)pages_start)>>(unsigned long)PAGE_SHIFT;
 
-	return vip_mmap_region(file, addr, len, flags, vm_flags, pgoff, vflags);
+	return vip_mmap_region(file, addr, len, flags, vip_flags, vm_flags, pgoff);
 }
 EXPORT_SYMBOL(do_vip_mmap_pgoff);
-/*DANNY-MODS END*/
 #endif
 
 SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
@@ -1297,30 +1290,25 @@ out:
 	return retval;
 }
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
-SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags,
+#ifdef CONFIG_VIPZONE_FRONT_END
+SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags, unsigned long, vip_flags,
 		unsigned long, fd, unsigned long, pgoff)
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
-	unsigned long vflags = flags & _VIP_MASK;
-    unsigned long rflags = flags & ~(_VIP_MASK);
+	unsigned long vip_typ_flags = vip_flags & _VIP_TYP_MASK;
+	unsigned long vip_util_flags = vip_flags & _VIP_UTIL_MASK;
 	
-	printk("vip_mmap_pgoff [1]: flags=0x%lx, vflags=0x%lx, rflags=0x%lx\n", flags, vflags, rflags);
-	
-	// since we are replicating code leave this as is for now
-	flags = rflags;
-	
+	printk(KERN_WARNING "<MWG> vip_mmap_pgoff [1]: flags=0x%lx, vip_flags=0x%lx, vip_typ_flags=0x%lx, vip_util_flags=0x%lx\n", flags, vip_flags, vip_typ_flags, vip_util_flags);
 	
 	// we assume all mappings here are anonymous
 	//   we will need to optimize this part
-	//   also, no map hughe tlb support for now
+	//   also, no map huge tlb support for now
 //#if 0
 	if (!(flags & MAP_ANONYMOUS)) {
 	  
-		printk("vip_mmap_pgoff: !(flags & MAP_ANONYMOUS) \n");
+		printk(KERN_WARNING "<MWG> vip_mmap_pgoff: !(flags & MAP_ANONYMOUS) \n");
 		
 		audit_mmap_fd(fd, flags);
 		if (unlikely(flags & MAP_HUGETLB))
@@ -1330,7 +1318,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 			goto out;
 	} else if (flags & MAP_HUGETLB) {
 	  
-		printk("vip_mmap_pgoff: flags & MAP_HUGETLB \n");
+		printk(KERN_WARNING "<MWG> vip_mmap_pgoff: flags & MAP_HUGETLB \n");
 		
 		struct user_struct *user = NULL;
 		/*
@@ -1350,14 +1338,10 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	// we need to do this mapping within do_vip_mmap_pgoff
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 	
-	printk("vip_mmap_pgoff [2]: flags=0x%lx, vflags=0x%lx, rflags=0x%lx\n", flags, vflags, rflags);
-	
-	flags |= vflags;
-	
-	printk("vip_mmap_pgoff [3]: flags=0x%lx, vflags=0x%lx, rflags=0x%lx\n", flags, vflags, rflags);
+	printk(KERN_WARNING "<MWG> vip_mmap_pgoff [2]: flags=0x%lx, vip_flags=0x%lx, vip_typ_flags=0x%lx, vip_util_flags=0x%lx\n", flags, vip_flags, vip_typ_flags, vip_util_flags);
 	
 	down_write(&current->mm->mmap_sem);
-	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, pgoff);
+	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, vip_flags, pgoff);
 	up_write(&current->mm->mmap_sem);
 
 	if (file)
@@ -1366,7 +1350,6 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 out:
 	return retval;
 }
-/*DANNY-MODS END*/
 #endif
 
 #ifdef __ARCH_WANT_SYS_OLD_MMAP
@@ -1599,12 +1582,10 @@ unacct_error:
 	return error;
 }
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
+#ifdef CONFIG_VIPZONE_FRONT_END
 unsigned long vip_mmap_region(struct file *file, unsigned long addr,
-			  unsigned long len, unsigned long flags,
-			  vm_flags_t vm_flags, unsigned long pgoff,
-			  unsigned long vflags)
+			  unsigned long len, unsigned long flags, unsigned long vip_flags,
+			  vm_flags_t vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
@@ -1676,12 +1657,12 @@ vip_munmap_back:
 	
 	if (!pages_start)
 	{
-	  printk("vip_mmap_pgoff [7]: ERROR = %u, could not get %u Bytes worth of pages (%u)\n", -ENOMEM, len, order);
+	  printk(KERN_WARNING "<MWG> vip_mmap_pgoff [7]: ERROR = %u, could not get %u Bytes worth of pages (%u)\n", -ENOMEM, len, order);
 	  memset(pages_start, 0, PAGE_SIZE << order);
 	  return -ENOMEM;
 	}
 	else {
-	  printk("vip_mmap_pgoff [8]: We got %u Bytes worth of pages (2^%u) @ (a=0x%lx,off=0x%lx,p1=0x%lx,p2=0x%lx)\n", 
+	  printk(KERN_WARNING "<MWG> vip_mmap_pgoff [8]: We got %u Bytes worth of pages (2^%u) @ (a=0x%lx,off=0x%lx,p1=0x%lx,p2=0x%lx)\n", 
 			 len, order, (unsigned long)pages_start, ((unsigned long)pages_start)>>(unsigned long)PAGE_SHIFT, 
 			 virt_to_phys((void*)((unsigned long)pages_start)), __pa(pages_start)>>PAGE_SHIFT);
 	}
@@ -1691,7 +1672,7 @@ vip_munmap_back:
 		virt_to_phys((void*)pages_start)>>PAGE_SHIFT, 
 		vma->vm_end - vma->vm_start, vma->vm_page_prot))<0) { 
 	  
-	  printk("vip_mmap_region: Remapping %lu (v=%lu) to %lu,\n", 
+	  printk(KERN_WARNING "<MWG> vip_mmap_region: Remapping %lu (v=%lu) to %lu,\n", 
 			 (unsigned long)pages_start, 
 			 virt_to_phys((void*)pages_start)>>PAGE_SHIFT, vma->vm_start);
 	  //return ret;
@@ -1700,7 +1681,7 @@ vip_munmap_back:
 	
 	while(size_tmp > 0)
 	{
-	   printk("vip_mmap_region: Locking page @ %lu (v=%lu),\n", 
+	   printk(KERN_WARNING "<MWG> vip_mmap_region: Locking page @ %lu (v=%lu),\n", 
 			 (unsigned long)pages_start, 
 			 virt_to_phys((void*)pages_start));
 	   
@@ -1708,10 +1689,7 @@ vip_munmap_back:
 	  get_page(virt_to_page((void*)start_addr));
 	  start_addr += PAGE_SIZE;
 	  size_tmp -=  PAGE_SIZE;
-	  
 	}
-	
-	
 	
 	
 	//return (unsigned long)pages_start;
@@ -1737,7 +1715,6 @@ vip_munmap_back:
 	printk("vip_mmap_region: failed to merge vma for address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
 	
 	
-	
 	/*
 	 * Determine the object being mapped and call the appropriate
 	 * specific mapper. the address has already been validated, but
@@ -1754,7 +1731,7 @@ vip_munmap_back:
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
 	/* Might be unecessary to have two fields, may use vm_flags*/
-	vma->vm_flags = vflags;
+//	vma->vm_flags = vip_flags;
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
@@ -1822,8 +1799,8 @@ vip_out:
 			mm->locked_vm += (len >> PAGE_SHIFT);
 	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
 		make_pages_present(addr, addr + len);
-	//printk(KERN_DEBUG "*** This is a debug message only. ***\n");
-	printk("vip_mmap_region: vip_out - mmap returning address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
+	
+	printk(KERN_WARNING "<MWG> vip_mmap_region: vip_out - mmap returning address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
 	
 	return addr;
 
@@ -1837,7 +1814,7 @@ vip_unmap_and_free_vma:
 	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
 	charged = 0;
 	
-	printk("vip_mmap_region: unmap_region called for address: %lu to %lu, total vm = %lu\n", vma->vm_start, vma->vm_end, mm->total_vm);
+	printk(KERN_WARNING "<MWG> vip_mmap_region: unmap_region called for address: %lu to %lu, total vm = %lu\n", vma->vm_start, vma->vm_end, mm->total_vm);
 	 
 vip_free_vma:
 	kmem_cache_free(vm_area_cachep, vma);
@@ -1845,11 +1822,10 @@ vip_unacct_error:
 	if (charged)
 		vm_unacct_memory(charged);
 	
-	printk("vip_mmap_region: returning error %lu for addr %lu to %lu, total vm = %lu\n", error, addr, addr + len, mm->total_vm);
+	printk(KERN_WARNING "<MWG> vip_mmap_region: returning error %lu for addr %lu to %lu, total vm = %lu\n", error, addr, addr + len, mm->total_vm);
 	 
 	return error;
 }
-/*DANNY-MODS END*/
 #endif
 
 /* Get an address range which is currently unmapped.
@@ -2073,8 +2049,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 
 EXPORT_SYMBOL(get_unmapped_area);
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
+#ifdef CONFIG_VIPZONE_FRONT_END
 #if 0
 unsigned long
 get_vip_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
@@ -2107,7 +2082,6 @@ get_vip_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 }
 EXPORT_SYMBOL(get_vip_unmapped_area);
 #endif
-/*DANNY-MODS END*/
 #endif
 
 /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */

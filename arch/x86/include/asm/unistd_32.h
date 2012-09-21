@@ -355,17 +355,14 @@
 #define __NR_process_vm_readv	347
 #define __NR_process_vm_writev	348
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
+#ifdef CONFIG_VIPZONE_FRONT_END
 #define __NR_vip_mmap		 349
 #define __NR_vip_mmap_pgoff		 350
-/*DANNY-MODS END*/
 #endif
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_DANNY_MODS
-//MWG
+#ifdef CONFIG_VIPZONE_FRONT_END
 #define NR_syscalls 351
 #else
 #define NR_syscalls 349

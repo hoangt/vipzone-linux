@@ -41,20 +41,15 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long fd, off_t pgoff);
 #endif
 
-#ifdef CONFIG_DANNY_MODS
-/* DANNY MODS START */
-//MWG
-//#ifndef sys_vip_mmap
+#ifdef CONFIG_VIPZONE_FRONT_END
+//extra paramter for vip_flags
 asmlinkage long sys_vip_mmap(unsigned long addr, unsigned long len, unsigned long prot,
-			 unsigned long flags, unsigned long fd, unsigned long off);
-//#endif
+			 unsigned long flags, unsigned long vip_flags, unsigned long fd, unsigned long off);
 
-//#ifndef sys_vip_mmap_pgoff
+//extra paramter for vip_flags
 asmlinkage long sys_vip_mmap_pgoff(unsigned long addr, unsigned long len,
-         unsigned long prot, unsigned long flags,
+         unsigned long prot, unsigned long flags, unsigned long vip_flags,
          unsigned long fd, unsigned long pgoff);
-//#endif
-/* DANNY MODS STOP */
 #endif
 
 #ifndef sys_sigaltstack

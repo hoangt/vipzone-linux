@@ -95,26 +95,24 @@ out:
 	return error;
 }
 
-#ifdef CONFIG_DANNY_MODS
-SYSCALL_DEFINE6(vip_mmap, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags,
+#ifdef CONFIG_VIPZONE_FRONT_END
+SYSCALL_DEFINE7(vip_mmap, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags, unsigned long, vip_flags,
 		unsigned long, fd, unsigned long, off)
 {
-    long error;
-    //unsigned long vflags = flags & _VIP_MASK;
-    //unsigned long rflags = flags & ~(_VIP_MASK);
+   long retval = -EINVAL;
+   //unsigned long vflags = flags & _VIP_MASK;
+   //unsigned long rflags = flags & ~(_VIP_MASK);
 	
-	printk("vip_mmap: request space from %lu to %lu, with flags = %lu, masks: (0x%lx, 0x%lx)\n", 
-	  addr, addr+len, flags,_VIP_MASK, ~(_VIP_MASK));
-    
-	error = -EINVAL;
+	printk(KERN_WARNING "<MWG> vip_mmap syscall: request space from %lu to %lu, with prot = %lu, flags = %lu, vip_flags = %lu, fd = %lu, offset = %lu\n", 
+	  addr, addr+len, prot, flags, vip_flags, fd, off);
+  
 	if (off & ~PAGE_MASK)
 		goto vip_out;
 
-	error = sys_vip_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	retval = sys_vip_mmap_pgoff(addr, len, prot, flags, vip_flags, fd, off >> PAGE_SHIFT);
 vip_out:
-	return error;
-	//return addr + len;
+	return retval;
 }
 #endif
 

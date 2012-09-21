@@ -902,9 +902,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #endif
 #endif
 
-#ifdef CONFIG_DANNY_MODS
-/*DANNY-MODS START*/
-/* Adding vip_mmap and vipzone related methods here */
+#ifdef CONFIG_VIPZONE_FRONT_END
 #define __NR_vip_mmap (__NR_syscalls+1)
 __SYSCALL(__NR_vip_mmap, sys_vip_mmap)
 
@@ -913,7 +911,6 @@ __SYSCALL(__NR_vip_mmap_pgoff, sys_vip_mmap_pgoff)
 
 #undef __NR_syscalls
 #define __NR_syscalls (__NR_vip_mmap_pgoff+1)
-/*DANNY-MODS END*/
 #endif
 
 #ifdef __KERNEL__
