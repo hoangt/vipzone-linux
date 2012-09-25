@@ -42,11 +42,11 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 #endif
 
 #ifdef CONFIG_VIPZONE_FRONT_END
-//extra paramter for vip_flags
+//extra parameter for vip_flags
 asmlinkage long sys_vip_mmap(unsigned long addr, unsigned long len, unsigned long prot,
 			 unsigned long flags, unsigned long vip_flags, unsigned long fd, unsigned long off);
 
-//extra paramter for vip_flags
+//extra parameter for vip_flags
 asmlinkage long sys_vip_mmap_pgoff(unsigned long addr, unsigned long len,
          unsigned long prot, unsigned long flags, unsigned long vip_flags,
          unsigned long fd, unsigned long pgoff);

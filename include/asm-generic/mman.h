@@ -23,11 +23,20 @@
 #define _VIP_TYP_WRITE        0x0001 // xxxx xxx1
 #define _VIP_TYP_MASK         0x0001 // 0000 0001 -- MASK
 
-#define _VIP_UTIL_LO          0x0000 // xx00 xxxx -- default
-#define _VIP_UTIL_MED         0x0010 // xx01 xxxx 
-#define _VIP_UTIL_HI          0x0020 // xx10 xxxx
-#define _VIP_UTIL_BAD         0x0030 // xx11 xxxx -- ILLEGAL
-#define _VIP_UTIL_MASK        0x0030 // 0011 0000 -- MASK
+#define _VIP_UTIL_LO          0x0000 // xxx0 xxxx -- default
+//#define _VIP_UTIL_MED         0x0010 // xx01 xxxx 
+#define _VIP_UTIL_HI          0x0010 // xxx1 xxxx
+//#define _VIP_UTIL_BAD         0x0030 // xx11 xxxx -- ILLEGAL
+#define _VIP_UTIL_MASK        0x0010 // 0001 0000 -- MASK
+
+//Macros for extracting vipzone flags
+#define is_vip_typ_read(vip_flags) (vip_flags & _VIP_TYP_MASK == _VIP_TYP_READ)
+#define is_vip_typ_write(vip_flags) (vip_flags & _VIP_TYP_MASK == _VIP_TYP_WRITE)
+
+#define is_vip_util_lo(vip_flags) (vip_flags & _VIP_UTIL_MASK == _VIP_UTIL_LO)
+//#define is_vip_util_med(vip_flags) (vip_flags & _VIP_UTIL_MASK == _VIP_UTIL_MED)
+#define is_vip_util_hi(vip_flags) (vip_flags & _VIP_UTIL_MASK == _VIP_UTIL_HI)
+//#define is_vip_util_bad(vip_flags) (vip_flags & _VIP_UTIL_MASK == _VIP_UTIL_BAD)
 
 #endif
 

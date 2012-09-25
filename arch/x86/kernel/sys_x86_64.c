@@ -100,19 +100,13 @@ SYSCALL_DEFINE7(vip_mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags, unsigned long, vip_flags,
 		unsigned long, fd, unsigned long, off)
 {
-   long retval = -EINVAL;
-   //unsigned long vflags = flags & _VIP_MASK;
-   //unsigned long rflags = flags & ~(_VIP_MASK);
-	
 	printk(KERN_WARNING "<MWG> vip_mmap syscall: request space from %lu to %lu, with prot = %lu, flags = %lu, vip_flags = %lu, fd = %lu, offset = %lu\n", 
 	  addr, addr+len, prot, flags, vip_flags, fd, off);
   
 	if (off & ~PAGE_MASK)
-		goto vip_out;
+		return -EINVAL;
 
-	retval = sys_vip_mmap_pgoff(addr, len, prot, flags, vip_flags, fd, off >> PAGE_SHIFT);
-vip_out:
-	return retval;
+	return sys_vip_mmap_pgoff(addr, len, prot, flags, vip_flags, fd, off >> PAGE_SHIFT);
 }
 #endif
 

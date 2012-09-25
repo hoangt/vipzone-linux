@@ -1089,9 +1089,6 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	int order = 0;
 	unsigned long reqprot = prot;
 	
-	unsigned long vip_typ_flags = vip_flags & _VIP_TYP_MASK;	
-	unsigned long vip_util_flags = vip_flags & _VIP_UTIL_MASK;	
-
 	unsigned long *pages_start;
 	
 	
@@ -1231,14 +1228,12 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
 	if (error)
 	{
-		printk(KERN_WARNING "<MWG> vip_mmap_pgoff [6]: ERROR = %u, flags=0x%lx, vip_flags=0x%lx, vip_typ_flags=0x%lx, vip_util_flags=0x%lx\n", error, flags, vip_flags, vip_typ_flags, vip_util_flags);
+		printk(KERN_WARNING "<MWG> do_vip_mmap_pgoff [6]: ERROR = %u, flags=0x%lx, vip_flags=0x%lx\n", error, flags, vip_flags);
 		return error;
 	}
 	
 	//page_cnt = len/PAGE_SIZE;
 	//size = PAGE_ALIGN(size);
-   
-	
 	
 	
 	//addr = (unsigned long)pages_start;
@@ -1297,10 +1292,26 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
-	unsigned long vip_typ_flags = vip_flags & _VIP_TYP_MASK;
-	unsigned long vip_util_flags = vip_flags & _VIP_UTIL_MASK;
 	
-	printk(KERN_WARNING "<MWG> vip_mmap_pgoff [1]: flags=0x%lx, vip_flags=0x%lx, vip_typ_flags=0x%lx, vip_util_flags=0x%lx\n", flags, vip_flags, vip_typ_flags, vip_util_flags);
+	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [1]: flags=0x%lx, vip_flags=0x%lx\n", flags, vip_flags);
+	if (is_vip_typ_read(vip_flags))
+		printk(KERN_WARNING "... vip_flags shows READ mode\n");
+	else if (is_vip_typ_write(vip_flags))
+		printk(KERN_WARNING "... vip_flags shows WRITE mode\n");
+	else
+		printk(KERN_WARNING "... vip_flags shows UNDEFINED!!!!! mode\n");
+
+	if (is_vip_util_lo(vip_flags))
+		printk(KERN_WARNING "... vip_flags shows LO mode\n");
+	else if (is_vip_util_med(vip_flags))
+		printk(KERN_WARNING "... vip_flags shows MED mode\n");
+	else if (is_vip_util_hi(vip_flags))
+		printk(KERN_WARNING "... vip_flags shows HI mode\n");
+	else if (is_vip_util_bad(vip_flags))
+		printk(KERN_WARNING "... vip_flags shows BAD mode\n");
+	else
+		printk(KERN_WARNING "... vip_flags shows UNDEFINED!!!!! mode\n");
+
 	
 	// we assume all mappings here are anonymous
 	//   we will need to optimize this part
@@ -1308,7 +1319,7 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 //#if 0
 	if (!(flags & MAP_ANONYMOUS)) {
 	  
-		printk(KERN_WARNING "<MWG> vip_mmap_pgoff: !(flags & MAP_ANONYMOUS) \n");
+		printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [2]: !(flags & MAP_ANONYMOUS) \n");
 		
 		audit_mmap_fd(fd, flags);
 		if (unlikely(flags & MAP_HUGETLB))
@@ -1318,7 +1329,7 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 			goto out;
 	} else if (flags & MAP_HUGETLB) {
 	  
-		printk(KERN_WARNING "<MWG> vip_mmap_pgoff: flags & MAP_HUGETLB \n");
+		printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [3]: flags & MAP_HUGETLB \n");
 		
 		struct user_struct *user = NULL;
 		/*
@@ -1338,7 +1349,7 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	// we need to do this mapping within do_vip_mmap_pgoff
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 	
-	printk(KERN_WARNING "<MWG> vip_mmap_pgoff [2]: flags=0x%lx, vip_flags=0x%lx, vip_typ_flags=0x%lx, vip_util_flags=0x%lx\n", flags, vip_flags, vip_typ_flags, vip_util_flags);
+	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [4]: flags=0x%lx, vip_flags=0x%lx\n", flags, vip_flags);
 	
 	down_write(&current->mm->mmap_sem);
 	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, vip_flags, pgoff);
@@ -1346,7 +1357,7 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 
 	if (file)
 		fput(file);
-// needed to remove our
+
 out:
 	return retval;
 }
