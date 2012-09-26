@@ -1088,17 +1088,16 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	int error;
 	int order = 0;
 	unsigned long reqprot = prot;
-	
 	unsigned long *pages_start;
 	
 	
-	// lock the vm space?
+	//Danny: lock the vm space?
 	//flags = flags | VM_LOCKED;
 
 	/* from upper level call */
-	//flags = rflags & ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+	//flags = rflags & ~(MAP_EXECUTABLE | MAP_DENYWRITE); //Danny
 	
-	printk("do_vip_mmap_pgoff: mmap returning address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
+	printk(KERN_WARNING "<MWG> do_vip_mmap_pgoff [1]: address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
 	
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC?
@@ -1123,7 +1122,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 
 	/* offset overflow? */
 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-               return -EOVERFLOW;
+		return -EOVERFLOW;
 
 	/* Too many mappings? */
 	/* Need to modify this in case we exceed the number of allowed mappings */
@@ -1145,7 +1144,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 			
 			
-	// lock the vm space so it is not swapped
+	//Danny: lock the vm space so it is not swapped
 	//vm_flags = vm_flags | VM_LOCKED;
 
 	if (flags & MAP_LOCKED)
@@ -1228,10 +1227,11 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
 	if (error)
 	{
-		printk(KERN_WARNING "<MWG> do_vip_mmap_pgoff [6]: ERROR = %u, flags=0x%lx, vip_flags=0x%lx\n", error, flags, vip_flags);
+		printk(KERN_WARNING "<MWG> do_vip_mmap_pgoff [2]: ERROR = %u\n", error, flags, vip_flags);
 		return error;
 	}
-	
+
+	//Danny...
 	//page_cnt = len/PAGE_SIZE;
 	//size = PAGE_ALIGN(size);
 	
@@ -1286,12 +1286,15 @@ out:
 }
 
 #ifdef CONFIG_VIPZONE_FRONT_END
-SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags, unsigned long, vip_flags,
+SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags,
 		unsigned long, fd, unsigned long, pgoff)
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
+	unsigned long vip_flags = flags & _VIP_MASK;
+
+	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [0]: Made it this far!\n");
 	
 	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [1]: flags=0x%lx, vip_flags=0x%lx\n", flags, vip_flags);
 	if (is_vip_typ_read(vip_flags))
@@ -1303,12 +1306,8 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 
 	if (is_vip_util_lo(vip_flags))
 		printk(KERN_WARNING "... vip_flags shows LO mode\n");
-	else if (is_vip_util_med(vip_flags))
-		printk(KERN_WARNING "... vip_flags shows MED mode\n");
 	else if (is_vip_util_hi(vip_flags))
 		printk(KERN_WARNING "... vip_flags shows HI mode\n");
-	else if (is_vip_util_bad(vip_flags))
-		printk(KERN_WARNING "... vip_flags shows BAD mode\n");
 	else
 		printk(KERN_WARNING "... vip_flags shows UNDEFINED!!!!! mode\n");
 
@@ -1319,17 +1318,17 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 //#if 0
 	if (!(flags & MAP_ANONYMOUS)) {
 	  
-		printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [2]: !(flags & MAP_ANONYMOUS) \n");
+		printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [2]: Mapping request was not anonymous\n");
 		
 		audit_mmap_fd(fd, flags);
 		if (unlikely(flags & MAP_HUGETLB))
 			return -EINVAL;
 		file = fget(fd);
 		if (!file)
-			goto out;
+			return -EBADF;
 	} else if (flags & MAP_HUGETLB) {
 	  
-		printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [3]: flags & MAP_HUGETLB \n");
+		printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [3]: Mapping request was anonymous, and huge TLB support is requested\n");
 		
 		struct user_struct *user = NULL;
 		/*
@@ -1349,16 +1348,18 @@ SYSCALL_DEFINE7(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	// we need to do this mapping within do_vip_mmap_pgoff
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 	
-	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [4]: flags=0x%lx, vip_flags=0x%lx\n", flags, vip_flags);
-	
 	down_write(&current->mm->mmap_sem);
+
+	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [4]: calling do_vip_mmap_pgoff()\n");
+
 	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, vip_flags, pgoff);
 	up_write(&current->mm->mmap_sem);
 
 	if (file)
 		fput(file);
+	
+	printk(KERN_WARNING "<MWG> sys_vip_mmap_pgoff [5]: Returning...\n");
 
-out:
 	return retval;
 }
 #endif
@@ -1659,40 +1660,42 @@ vip_munmap_back:
 	 */
 	
 	order = get_order(len);
+
+	printk(KERN_WARNING "<MWG> vip_mmap_region [1]: page order = %lu\n", order);
 	
 	size_tmp = PAGE_SIZE * (1<<order);
 	ret = 0;
 	start_addr = pages_start;
 	
+	printk(KERN_WARNING "<MWG> vip_mmap_region [2]: ACTUALLY GETTING PAGES! Calling __get_free_pages()...\n");
+
 	pages_start = (unsigned long *)__get_free_pages(GFP_KERNEL, order); /* Need to do power of 2*/
 	
 	if (!pages_start)
 	{
-	  printk(KERN_WARNING "<MWG> vip_mmap_pgoff [7]: ERROR = %u, could not get %u Bytes worth of pages (%u)\n", -ENOMEM, len, order);
+	  printk(KERN_WARNING "<MWG> vip_mmap_region [3]: ERROR = %u, could not get %u Bytes worth of pages (%u)\n", -ENOMEM, len, order);
 	  memset(pages_start, 0, PAGE_SIZE << order);
 	  return -ENOMEM;
 	}
 	else {
-	  printk(KERN_WARNING "<MWG> vip_mmap_pgoff [8]: We got %u Bytes worth of pages (2^%u) @ (a=0x%lx,off=0x%lx,p1=0x%lx,p2=0x%lx)\n", 
+	  printk(KERN_WARNING "<MWG> vip_mmap_region [4]: We got %u Bytes worth of pages (2^%u) @ (a=0x%lx, off=0x%lx, p1=0x%lx, p2=0x%lx)\n", 
 			 len, order, (unsigned long)pages_start, ((unsigned long)pages_start)>>(unsigned long)PAGE_SHIFT, 
 			 virt_to_phys((void*)((unsigned long)pages_start)), __pa(pages_start)>>PAGE_SHIFT);
 	}
-	
 	
 	if((ret=remap_pfn_range(vma, vma->vm_start, 
 		virt_to_phys((void*)pages_start)>>PAGE_SHIFT, 
 		vma->vm_end - vma->vm_start, vma->vm_page_prot))<0) { 
 	  
-	  printk(KERN_WARNING "<MWG> vip_mmap_region: Remapping %lu (v=%lu) to %lu,\n", 
-			 (unsigned long)pages_start, 
-			 virt_to_phys((void*)pages_start)>>PAGE_SHIFT, vma->vm_start);
+	  printk(KERN_WARNING "<MWG> vip_mmap_region [5]: Remapping %lu (v=%lu) to %lu,\n", (unsigned long)pages_start, virt_to_phys((void*)pages_start)>>PAGE_SHIFT, vma->vm_start);
+
 	  //return ret;
 	} // else return regular space
 	
 	
 	while(size_tmp > 0)
 	{
-	   printk(KERN_WARNING "<MWG> vip_mmap_region: Locking page @ %lu (v=%lu),\n", 
+	   printk(KERN_WARNING "<MWG> vip_mmap_region [6]: Locking page @ %lu (v=%lu),\n", 
 			 (unsigned long)pages_start, 
 			 virt_to_phys((void*)pages_start));
 	   
@@ -1723,7 +1726,7 @@ vip_munmap_back:
 		goto vip_out;
 	//
 	
-	printk("vip_mmap_region: failed to merge vma for address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
+	printk(KERN_WARNING "<MWG> vip_mmap_region[7]: failed to merge vma for address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
 	
 	
 	/*
@@ -1811,7 +1814,7 @@ vip_out:
 	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
 		make_pages_present(addr, addr + len);
 	
-	printk(KERN_WARNING "<MWG> vip_mmap_region: vip_out - mmap returning address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
+	printk(KERN_WARNING "<MWG> vip_mmap_region [8]: vip_out - mmap returning address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
 	
 	return addr;
 
@@ -1825,7 +1828,7 @@ vip_unmap_and_free_vma:
 	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
 	charged = 0;
 	
-	printk(KERN_WARNING "<MWG> vip_mmap_region: unmap_region called for address: %lu to %lu, total vm = %lu\n", vma->vm_start, vma->vm_end, mm->total_vm);
+	printk(KERN_WARNING "<MWG> vip_mmap_region [9]: unmap_region called for address: %lu to %lu, total vm = %lu\n", vma->vm_start, vma->vm_end, mm->total_vm);
 	 
 vip_free_vma:
 	kmem_cache_free(vm_area_cachep, vma);
@@ -1833,7 +1836,7 @@ vip_unacct_error:
 	if (charged)
 		vm_unacct_memory(charged);
 	
-	printk(KERN_WARNING "<MWG> vip_mmap_region: returning error %lu for addr %lu to %lu, total vm = %lu\n", error, addr, addr + len, mm->total_vm);
+	printk(KERN_WARNING "<MWG> vip_mmap_region [10]: returning error %lu for addr %lu to %lu, total vm = %lu\n", error, addr, addr + len, mm->total_vm);
 	 
 	return error;
 }
