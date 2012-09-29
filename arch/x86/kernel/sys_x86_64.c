@@ -102,15 +102,15 @@ SYSCALL_DEFINE6(vip_mmap, unsigned long, addr, unsigned long, len,
 {
 	unsigned long vip_flags = flags & _VIP_MASK;
 
-	printk(KERN_WARNING "<MWG> vip_mmap syscall: request space from %lu to %lu, with prot = %lu, flags = %lu, embedded vip_flags = %lu, fd = %lu, offset = %lu\n", 
+	printk(KERN_WARNING "<vipzone> vip_mmap syscall: request space from %lu to %lu, with prot = %lu, flags = %lu, embedded vip_flags = %lu, fd = %lu, offset = %lu\n", 
 	  addr, addr+len, prot, flags, vip_flags, fd, off);
   
 	if (off & ~PAGE_MASK) {
-		printk(KERN_WARNING "<MWG> vip_mmap syscall: bad offset, returning -EINVAL\n");
+		printk(KERN_WARNING "<vipzone> vip_mmap syscall: bad offset, returning -EINVAL\n");
 		return -EINVAL;
 	}
 
-	printk(KERN_WARNING "<MWG> vip_mmap syscall: OK, calling sys_vip_mmap_pgoff()...\n");
+	printk(KERN_WARNING "<vipzone> vip_mmap syscall: OK, calling sys_vip_mmap_pgoff()...\n");
 
 	return sys_vip_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }

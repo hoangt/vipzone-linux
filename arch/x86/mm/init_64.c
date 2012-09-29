@@ -55,7 +55,7 @@
 #include <asm/uv/uv.h>
 #include <asm/setup.h>
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 extern unsigned int nr_dimms;
 extern unsigned int dimm_size_mbytes;
@@ -626,19 +626,19 @@ void __init initmem_init(void)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	unsigned long page_size_order = 0; //MWG
-	unsigned long page_size = PAGE_SIZE; //MWG
+	unsigned long page_size_order = 0; //vipzone
+	unsigned long page_size = PAGE_SIZE; //vipzone
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	
-	int i; //MWG
+	int i; //vipzone
 #endif
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	
-	while (page_size > 1) { //MWG: We do this to avoid overflow when computing the max_zone_pfns.
+	while (page_size > 1) { //vipzone: We do this to avoid overflow when computing the max_zone_pfns.
 		page_size /= 2;
 		page_size_order++;
 	}
@@ -649,11 +649,11 @@ void __init paging_init(void)
 
 	#ifdef CONFIG_ZONE_DMA32
 	if (unlikely((dimm_size_mbytes > 4096))) //Check to make sure DIMM sizes are smaller than DMA32 address space.
-		printk(KERN_WARNING "<MWG> DIMM size exceeds 4GB -- DMA32 may not work correctly!\n");
+		printk(KERN_WARNING "<vipzone> DIMM size exceeds 4GB -- DMA32 may not work correctly!\n");
 	max_dimm_zone_for_dma32 = 4096/dimm_size_mbytes+ZONE1-1; //DMA32 can never address more than 4GB. Compute the highest DIMM zone below this cap.	
 	if (max_dimm_zone_for_dma32 > nr_dimms+ZONE1-1) //Make sure the DMA32 requests are capped at the highest actual present DIMM
 		max_dimm_zone_for_dma32 = nr_dimms+ZONE1-1;
-	printk(KERN_INFO "<MWG> Maximum DIMM zone allowed for DMA32 allocations: zone %u (DIMM %u)\n", max_dimm_zone_for_dma32, max_dimm_zone_for_dma32+1-ZONE1);
+	printk(KERN_INFO "<vipzone> Maximum DIMM zone allowed for DMA32 allocations: zone %u (DIMM %u)\n", max_dimm_zone_for_dma32, max_dimm_zone_for_dma32+1-ZONE1);
 	#else
 	max_dimm_zone_for_dma32 = ZONE1; //Unused placeholder.
 	#endif
@@ -666,7 +666,7 @@ void __init paging_init(void)
 			max_zone_pfns[i] = max_pfn;
 	}
 	
-	//MWG: Init the DIMM zone priorities for both write and read operations
+	//vipzone: Init the DIMM zone priorities for both write and read operations
 	for (i = 0; i < CONFIG_MAX_NR_VIPZONES; i++) {
 		if (i < nr_dimms) { //in the usable range
 			/*** ADD CUSTOM WRITE ZONE ORDERING HERE ***/
@@ -687,23 +687,23 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 #endif
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
-	printk(KERN_INFO "<MWG> We have specified (through config) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
-#ifdef CONFIG_ZONE_DMA //MWG
+	printk(KERN_INFO "<vipzone> We have specified (through config) %u DIMMs, each with %u MB.\n", nr_dimms, dimm_size_mbytes);
+#ifdef CONFIG_ZONE_DMA //vipzone
 	
-	printk(KERN_INFO "<MWG> DMA is enabled, so ZONE1 will not include the first 16MB that is instead reserved for ZONE_DMA.\n");
-	printk(KERN_INFO "<MWG> Max pfn for zone %d (DMA): %lu. This corresponds to %lu MB.\n", ZONE_DMA, max_zone_pfns[ZONE_DMA], max_zone_pfns[ZONE_DMA]/(1<<8));
+	printk(KERN_INFO "<vipzone> DMA is enabled, so ZONE1 will not include the first 16MB that is instead reserved for ZONE_DMA.\n");
+	printk(KERN_INFO "<vipzone> Max pfn for zone %d (DMA): %lu. This corresponds to %lu MB.\n", ZONE_DMA, max_zone_pfns[ZONE_DMA], max_zone_pfns[ZONE_DMA]/(1<<8));
 #endif
 	for (i = ZONE1; i < nr_dimms+ZONE1; i++) //Don't iterate into the 'dummy' DIMM zones
-		printk(KERN_INFO "<MWG> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1-ZONE1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
+		printk(KERN_INFO "<vipzone> Max pfn for zone %d (DIMM %d): %lu. This corresponds to %lu MB.\n", i, i+1-ZONE1, max_zone_pfns[i], max_zone_pfns[i]/(1<<8));
 		
-	printk(KERN_INFO "<MWG> DIMM WRITE zone priorities:");
+	printk(KERN_INFO "<vipzone> DIMM WRITE zone priorities:");
 	for (i = 0; i < CONFIG_MAX_NR_VIPZONES-1; i++)
 		printk(KERN_INFO " zone %d (DIMM %d) -->", __dimm_write_zone_ordering[i], __dimm_write_zone_ordering[i]+1-ZONE1);
 	printk(KERN_INFO " zone %d (DIMM %d)\n", __dimm_write_zone_ordering[i], __dimm_write_zone_ordering[i]+1-ZONE1);
 	
-	printk(KERN_INFO "<MWG> DIMM READ zone priorities:");
+	printk(KERN_INFO "<vipzone> DIMM READ zone priorities:");
 	for (i = 0; i < CONFIG_MAX_NR_VIPZONES-1; i++)
 		printk(KERN_INFO " zone %d (DIMM %d) -->", __dimm_read_zone_ordering[i], __dimm_read_zone_ordering[i]+1-ZONE1);
 	printk(KERN_INFO " zone %d (DIMM %d)\n", __dimm_read_zone_ordering[i], __dimm_read_zone_ordering[i]+1-ZONE1);

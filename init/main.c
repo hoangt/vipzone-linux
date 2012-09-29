@@ -1,5 +1,3 @@
-//MODIFIED BY MARK GOTTSCHO
-
 /*
  *  linux/init/main.c
  *
@@ -81,7 +79,7 @@
 #include <asm/smp.h>
 #endif
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 unsigned int nr_dimms = CONFIG_DEF_NR_VIPZONES;
 unsigned int dimm_size_mbytes = CONFIG_DEF_VIPZONE_SIZE_MBYTES;

@@ -1,5 +1,3 @@
-//MODIFIED BY MARK GOTTSCHO
-
 #ifndef __LINUX_GFP_H
 #define __LINUX_GFP_H
 
@@ -161,7 +159,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
 }
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG: We aren't using the GFP_ZONE_TABLE
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone: We aren't using the GFP_ZONE_TABLE
 
 extern unsigned int nr_dimms;
 extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_VIPZONES];
@@ -224,7 +222,7 @@ extern enum zone_type max_dimm_zone_for_dma32;
  * ZONES_SHIFT must be <= 2 on 32 bit platforms.
  */
  
-#ifndef CONFIG_VIPZONE_BACK_END //MWG: We don't need the zone table for looking up DIMMs
+#ifndef CONFIG_VIPZONE_BACK_END //vipzone: We don't need the zone table for looking up DIMMs
 	#define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				      \
 	| (OPT_ZONE_DMA << ___GFP_DMA * ZONES_SHIFT)			      \
@@ -243,7 +241,7 @@ extern enum zone_type max_dimm_zone_for_dma32;
  * entry starting with bit 0. Bit is set if the combination is not
  * allowed.
  */
- //MWG: This does not need to be modified.
+ //vipzone: This does not need to be modified.
 #define GFP_ZONE_BAD ( \
 	1 << (___GFP_DMA | ___GFP_HIGHMEM)				      \
 	| 1 << (___GFP_DMA | ___GFP_DMA32)				      \
@@ -255,7 +253,7 @@ extern enum zone_type max_dimm_zone_for_dma32;
 	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA | ___GFP_HIGHMEM)  \
 )
 
-//MWG: Modify this function to decide the preferred zone based on lowest power consumption.
+//vipzone: Modify this function to decide the preferred zone based on lowest power consumption.
 static inline enum zone_type gfp_zone(gfp_t flags)
 {
 	int bit = (__force int) (flags & GFP_ZONEMASK);
@@ -273,7 +271,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 		return max_dimm_zone_for_dma32;
 	#endif
 	
-	return __dimm_write_zone_ordering[0]; //MWG: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
+	return __dimm_write_zone_ordering[0]; //vipzone: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
 #else	
 	return (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);

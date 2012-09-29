@@ -80,7 +80,7 @@ static inline void vm_events_fold_cpu(int cpu)
 
 #endif /* CONFIG_VM_EVENT_COUNTERS */
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 #define __count_zone_vm_events(item, zone, delta) \
 		__count_vm_events(item##_NORMAL - ZONE1 + \
 		zone_idx(zone), delta)
@@ -157,7 +157,7 @@ static inline unsigned long node_page_state(int node,
 				 enum zone_stat_item item)
 {
 	struct zone *zones = NODE_DATA(node)->node_zones;
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_ZONE_BYDIMM //vipzone
 	unsigned long retval = 0;
 	int i = 0;
 	

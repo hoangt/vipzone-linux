@@ -19,7 +19,7 @@
 #define HIGHMEM_ZONE(xx)
 #endif
 
-#ifdef CONFIG_ZONE_BYDIMM //MWG
+#ifdef CONFIG_ZONE_BYDIMM //vipzone
 		#define DIMM1_ZONE(xx) xx##_DIMM1,
 	#if CONFIG_MAX_NR_DIMMS > 1
 		#define DIMM2_ZONE(xx) xx##_DIMM2,

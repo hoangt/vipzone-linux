@@ -1,5 +1,3 @@
-//MODIFIED BY MARK GOTTSCHO
-
 #ifndef _LINUX_MMZONE_H
 #define _LINUX_MMZONE_H
 
@@ -49,7 +47,7 @@
 	for (order = 0; order < MAX_ORDER; order++) \
 		for (type = 0; type < MIGRATE_TYPES; type++)
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 extern unsigned int nr_dimms;
 extern enum zone_type max_dimm_zone_for_dma32;
@@ -230,7 +228,7 @@ struct per_cpu_pageset {
 #endif /* !__GENERATING_BOUNDS.H */
 
 enum zone_type {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	#ifdef CONFIG_ZONE_DMA
 	ZONE_DMA, //We need to support this for legacy hardware. DMA32 does not need an explicit zone as long as all DIMM zones are < 4GB each
 	#endif
@@ -787,7 +785,7 @@ extern int movable_zone;
 
 static inline int zone_movable_is_highmem(void)
 {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	return 0;
 #elif defined(CONFIG_HIGHMEM) && defined(CONFIG_ARCH_POPULATES_NODE_MAP)
 	return movable_zone == ZONE_HIGHMEM;
@@ -798,7 +796,7 @@ static inline int zone_movable_is_highmem(void)
 
 static inline int is_highmem_idx(enum zone_type idx)
 {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	return 0;
 #elif defined(CONFIG_HIGHMEM)
 	return (idx == ZONE_HIGHMEM ||
@@ -808,7 +806,7 @@ static inline int is_highmem_idx(enum zone_type idx)
 #endif
 }
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 static inline int is_dimm_idx(enum zone_type idx)
 {
 	return (idx >= ZONE1 && idx <= ZONE1 + nr_dimms - 1);
@@ -817,7 +815,7 @@ static inline int is_dimm_idx(enum zone_type idx)
 
 static inline int is_normal_idx(enum zone_type idx)
 {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	return 0;
 #else
 	return (idx == ZONE_NORMAL);
@@ -832,7 +830,7 @@ static inline int is_normal_idx(enum zone_type idx)
  */
 static inline int is_highmem(struct zone *zone)
 {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	return 0;
 #elif defined(CONFIG_HIGHMEM)
 	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
@@ -844,7 +842,7 @@ static inline int is_highmem(struct zone *zone)
 #endif
 }
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 static inline int is_dimm(struct zone *zone)
 {	
 	return (zone >= zone->zone_pgdat->node_zones + ZONE1 && zone <= zone->zone_pgdat->node_zones + ZONE1 + nr_dimms - 1);
@@ -853,7 +851,7 @@ static inline int is_dimm(struct zone *zone)
 
 static inline int is_normal(struct zone *zone)
 {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	return 0;
 #else
 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
@@ -862,7 +860,7 @@ static inline int is_normal(struct zone *zone)
 
 static inline int is_dma32(struct zone *zone)
 {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	#ifdef CONFIG_ZONE_DMA32
 		return zone <= zone->zone_pgdat->node_zones + max_dimm_zone_for_dma32; 
 	#else 
@@ -877,7 +875,7 @@ static inline int is_dma32(struct zone *zone)
 
 static inline int is_dma(struct zone *zone)
 {
-#ifdef CONFIG_ZONE_DMA //MWG
+#ifdef CONFIG_ZONE_DMA //vipzone
 	
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
 #else

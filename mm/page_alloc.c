@@ -1,5 +1,3 @@
-//MODIFIED BY MARK GOTTSCHO
-
 /*
  *  linux/mm/page_alloc.c
  *
@@ -64,6 +62,10 @@
 #include <asm/div64.h>
 #include "internal.h"
 
+#ifdef CONFIG_VIPZONE_BACK_END
+#include <linux/vipzone_flags.h> //vipzone
+#endif
+
 #ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
 DEFINE_PER_CPU(int, numa_node);
 EXPORT_PER_CPU_SYMBOL(numa_node);
@@ -80,7 +82,7 @@ DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
 EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 #endif
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 extern enum zone_type __dimm_write_zone_ordering[CONFIG_MAX_NR_VIPZONES];
 extern enum zone_type __dimm_read_zone_ordering[CONFIG_MAX_NR_VIPZONES];
@@ -159,7 +161,7 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  * don't need any ZONE_NORMAL reservation
  */
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 	#ifdef CONFIG_ZONE_DMA
 	256,
@@ -207,7 +209,7 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 EXPORT_SYMBOL(totalram_pages);
 
 static char * const zone_names[MAX_NR_ZONES] = {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	#ifdef CONFIG_ZONE_DMA
 	"DMA",
 	#endif 
@@ -1813,11 +1815,11 @@ this_zone_full:
 	return page;
 }
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
- * MWG: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
+ * Mark: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
  */
 static struct page *
 get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
@@ -1832,7 +1834,7 @@ get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned in
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 	int priority_index;
 #endif
@@ -1843,7 +1845,7 @@ zonelist_scan:
 	 * Scan zonelist, looking for a zone with enough free.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
 		z = dimm_write_zoneref_list[priority_index];
@@ -1926,7 +1928,7 @@ this_zone_full:
 		goto zonelist_scan;
 	}
 	
-	if (finalZone) //MWG: check for NULL
+	if (finalZone) //vipzone: check for NULL
 		*finalZone = zone;
 	else
 		*finalZone = NULL;
@@ -2062,7 +2064,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 		if (order > PAGE_ALLOC_COSTLY_ORDER)
 			goto out;
 		/* The OOM killer does not needlessly kill tasks for lowmem */
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 		if (high_zoneidx < ZONE1)
 #else
 		if (high_zoneidx < ZONE_NORMAL)
@@ -2414,7 +2416,7 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 				if (high_zoneidx < ZONE1)
 #else
 				if (high_zoneidx < PG)
@@ -2458,7 +2460,7 @@ got_pg:
 
 }
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 static inline struct page *
 __alloc_pages_slowpath_vipzone(gfp_t gfp_mask, unsigned int order,
@@ -2512,7 +2514,7 @@ restart:
 	 * cpusets.
 	 */
 	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
 	preferred_zone = NULL; //Use as a flag.
 
@@ -2531,7 +2533,7 @@ restart:
 		}
 	
 	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
-		printk(KERN_WARNING "<MWG> alloc_pages_slowpath_vipzone(): DMA32 request did not find a suitable DIMM zone!\n");
+		printk(KERN_WARNING "<vipzone> alloc_pages_slowpath_vipzone(): DMA32 request did not find a suitable DIMM zone!\n");
 	#endif 
 
 	if (!preferred_zone)
@@ -2622,7 +2624,7 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 				if (high_zoneidx < ZONE1)
 #else
 				if (high_zoneidx < PG)
@@ -2658,131 +2660,105 @@ rebalance:
 
 nopage:
 	warn_alloc_failed(gfp_mask, order, NULL);
-	if (finalZone) //MWG
+	if (finalZone) //vipzone
 		*finalZone = NULL; return page; got_pg:
 	if (kmemcheck_enabled)
 		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
-	if (finalZone) //MWG
+	if (finalZone) //vipzone
 		*finalZone = page_zone(page);
 	return page;
 
 }
 #endif
 
-//MWG: Under construction!
-struct zone * vipzone_choose(enum vipzone_usage usage, enum vipzone_priority priority, bool need_dma32, enum zone_type high_zoneidx) {
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+struct zone * vipzone_choose(unsigned long vip_flags, bool need_dma32, enum zone_type high_zoneidx) {
 	int i = 0;
 	struct zone *emptiest_zone = NULL; //for case VIPZONE_LOW, this will be set to the zone with the most free space
 	unsigned long most_free_space = 0; //in pages. Corresponds to the emptiest zone.
 	
 	if (need_dma32) //Constrain DMA32 if necessary
 		high_zoneidx = max_dimm_zone_for_dma32;
-		
-	switch (usage) { //Write or read?
-		case VIPZONE_WRITE:
-			switch (priority) { //High, med, low?
-				case VIPZONE_HIGH:
-					//Get the lowest write power DIMM
-					for (i = 0; i < nr_dimms + ZONE1; i++) 
-						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
-							return dimm_write_zoneref_list[i]->zone;
-					break;
-				case VIPZONE_LOW:
-					//Get the DIMM with most pages free (arbitrarily using the write list)
+	
+	/*
+	 * Switch against vipzone util: hi or lo util?
+	 */
+	switch (vip_flags & _VIP_UTIL_MASK) { 
+		case _VIP_UTIL_HI:
+			/*
+			 * Switch against vipzone typ: read or write?
+			 */
+			switch (vip_flags & _VIP_TYP_MASK) { 
+				case _VIP_TYP_WRITE:
 					for (i = 0; i < nr_dimms + ZONE1; i++)
-						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
-							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
-							emptiest_zone = dimm_write_zoneref_list[i]->zone;
-						}
-					return emptiest_zone;
+							if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
+								return dimm_write_zoneref_list[i]->zone;
 					break;
-				case VIPZONE_MED:
-				default: //default to MED
-					//Get the first (lowest possible power) DIMM in write list with >50% free. If none, return the emptiest zone.
-					for (i = 0; i < nr_dimms + ZONE1; i++) {
-						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > dimm_write_zoneref_list[i]->zone->present_pages / 2)
-							return dimm_write_zoneref_list[i]->zone;	
-						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
-							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
-							emptiest_zone = dimm_write_zoneref_list[i]->zone;
-						}
-					}
-						return emptiest_zone;	
-					break;
-			}
-			break;
 
-		case VIPZONE_READ:
-		default: //default to READ
-			switch (priority) { //High, med, low?
-				case VIPZONE_HIGH:
-					//Get the lowest read power DIMM
-					for (i = 0; i < nr_dimms + ZONE1; i++) 
-						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
-							return dimm_read_zoneref_list[i]->zone;
+				default: 
+				case _VIP_TYP_READ:
+					for (i = 0; i < nr_dimms + ZONE1; i++)
+							if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
+								return dimm_read_zoneref_list[i]->zone;
 					break;
-				case VIPZONE_LOW:
-					//Get the DIMM with most pages free (arbitrarily using the read list)
+			}
+			break;
+	
+
+
+		default:
+		case _VIP_UTIL_LO:
+			/*
+			 * Switch against vipzone typ: read or write?
+			 */
+			switch (vip_flags & _VIP_TYP_MASK) {
+				case _VIP_TYP_WRITE:
+					for (i = 0; i < nr_dimms + ZONE1; i++)
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_write_zoneref_list[i]->zone;
+						}
+					return emptiest_zone;
+					
+				default:
+				case _VIP_TYP_READ:
 					for (i = 0; i < nr_dimms + ZONE1; i++)
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
 							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
 							emptiest_zone = dimm_read_zoneref_list[i]->zone;
 						}
 					return emptiest_zone;
-					break;
-				case VIPZONE_MED:
-				default: //default to MED
-					//Get the first (lowest possible power) DIMM in write list with >50% free. If none, return the emptiest zone.
-					for (i = 0; i < nr_dimms + ZONE1; i++) {
-						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > dimm_read_zoneref_list[i]->zone->present_pages / 2)
-							return dimm_read_zoneref_list[i]->zone;	
-						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
-							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
-							emptiest_zone = dimm_read_zoneref_list[i]->zone;
-						}
-					}
-					return emptiest_zone;	
-					break;
 			}
-			break;
 	}
 	
-	return NULL; //If nothing was found, out of luck for ViPZonE
+	return NULL; //OUT OF LUCK!
 }
+#endif
 
 
 			
 /*
  * This is the 'heart' of the zoned buddy allocator.
  */
+
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
 struct page *
-__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+__alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned long vip_flags, unsigned int order,
 			struct zonelist *zonelist, nodemask_t *nodemask)
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	struct zone *preferred_zone;
-	struct zone *finalZone; //MWG
+	struct zone *finalZone; 
 	struct page *page;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
 	int i = 0;	
 	static unsigned long iter = 0;
-	enum vipzone_priority priority = VIPZONE_MED; //PLACEHOLDER: THIS SHOULD BE A PARAMETER TO INTERFACE WITH UPPER ViPZonE
-	/*** 	USAGE:
-	 *	VIPZONE_LOW
-	 *	VIPZONE_MED
-	 *	VIPZONE_HIGH
-	 *	default: set to med (for handling cases without ViPZonE allocations)
-	 */
-	 
-	enum vipzone_usage usage = VIPZONE_READ; //PLACEHOLDER: THIS SHOULD BE A PARAMETER TO INTERFACE WITH UPPER ViPZonE
-	/***	USAGE:
-	 *	VIPZONE_WRITE
-	 *	VIPZONE_READ
-	 *	default: read
-	 */
-#endif
+
+#define NEED_DMA32 1
+#define NO_NEED_DMA32 0
 
 	gfp_mask &= gfp_allowed_mask;
 
@@ -2803,8 +2779,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	get_mems_allowed();
 
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
-
 	preferred_zone = NULL; //Use as a flag.
 
 	#ifdef CONFIG_ZONE_DMA
@@ -2819,22 +2793,17 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 				preferred_zone = dimm_write_zoneref_list[i]->zone;
 				break;
 			} */
-		preferred_zone = vipzone_choose(usage, priority, 1, high_zoneidx); //UNDER CONSTRUCTION
+		preferred_zone = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx); //UNDER CONSTRUCTION
 	}
 	
 	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
-		printk(KERN_WARNING "<MWG> DMA32 request did not find a suitable DIMM zone!\n");
+		printk(KERN_WARNING "<vipzone> DMA32 request did not find a suitable DIMM zone!\n");
 	#endif
 
 	if (!preferred_zone)
 		//preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
-		preferred_zone = vipzone_choose(usage, priority, 0, high_zoneidx);
-#else	
-	/* The preferred zone is used for statistics later */
-	first_zones_zonelist(zonelist, high_zoneidx,
-				nodemask ? : &cpuset_current_mems_allowed,
-				&preferred_zone); 
-#endif	
+		preferred_zone = vipzone_choose(vip_flags, NO_NEED_DMA32, high_zoneidx);
+	
 	if (!preferred_zone) {
 		put_mems_allowed();
 		return NULL;
@@ -2842,34 +2811,89 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	/* First allocation attempt */
 	
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
-
-	page = get_page_from_freelist_vipzone(gfp_mask|__GFP_HARDWALL, nodemask, order, //MWG: Try the preferred zone first, then fall back to other zones.
+	page = get_page_from_freelist_vipzone(gfp_mask|__GFP_HARDWALL, nodemask, order, //vipzone: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
-#else
-	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
-			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
-			preferred_zone, migratetype);
-#endif
+	
 	if (unlikely(!page))
-		page = __alloc_pages_slowpath_vipzone(gfp_mask, order, //MWG
+		page = __alloc_pages_slowpath_vipzone(gfp_mask, order, //vipzone
 				zonelist, high_zoneidx, nodemask,
 				preferred_zone, migratetype, &finalZone);
 	put_mems_allowed();
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 	
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
-	
 	if (iter % 50000 == 0 && preferred_zone && finalZone) {
-		printk(KERN_DEBUG "<MWG> Finished 10k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
+		printk(KERN_DEBUG "<vipzone> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
 		if (gfp_mask & __GFP_DMA32)
-			printk(KERN_DEBUG "<MWG> ----- This last page was a DMA32 request.\n");
+			printk(KERN_DEBUG "<vipzone> ----- This last page was a DMA32 request.\n");
 	}
 	iter++;
-#endif
+	
 	return page;
+}
+EXPORT_SYMBOL(__alloc_pages_nodemask_vipzone);
+#endif
+
+/*
+ * This is the 'heart' of the zoned buddy allocator.
+ */
+struct page *
+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+			struct zonelist *zonelist, nodemask_t *nodemask)
+{
+#ifdef CONFIG_VIPZONE_BACK_END
+static unsigned long seen = 0;
+	if (seen++ % 50000 == 0) 
+		printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask(): VIPZONE enabled, using __alloc_pages_nodemask_vipzone() instead\n");
+	
+	return __alloc_pages_nodemask_vipzone(gfp_mask, (_VIP_TYP_READ | _VIP_UTIL_LO), order, zonelist, nodemask); //go to vipzone, use default flags since none were provided
+#else //default
+	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+	struct zone *preferred_zone;
+	struct page *page;
+	int migratetype = allocflags_to_migratetype(gfp_mask);
+
+	gfp_mask &= gfp_allowed_mask;
+
+	lockdep_trace_alloc(gfp_mask);
+
+	might_sleep_if(gfp_mask & __GFP_WAIT);
+
+	if (should_fail_alloc_page(gfp_mask, order))
+		return NULL;
+
+	/*
+	 * Check the zones suitable for the gfp_mask contain at least one
+	 * valid zone. It's possible to have an empty zonelist as a result
+	 * of GFP_THISNODE and a memoryless node
+	 */
+	if (unlikely(!zonelist->_zonerefs->zone))
+		return NULL;
+
+	get_mems_allowed();
+	/* The preferred zone is used for statistics later */
+	first_zones_zonelist(zonelist, high_zoneidx,
+				nodemask ? : &cpuset_current_mems_allowed,
+				&preferred_zone);
+	if (!preferred_zone) {
+		put_mems_allowed();
+		return NULL;
+	}
+
+	/* First allocation attempt */
+	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
+			preferred_zone, migratetype);
+	if (unlikely(!page))
+		page = __alloc_pages_slowpath(gfp_mask, order,
+				zonelist, high_zoneidx, nodemask,
+				preferred_zone, migratetype);
+	put_mems_allowed();
+
+	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
+	return page;
+#endif
 }
 EXPORT_SYMBOL(__alloc_pages_nodemask);
 
@@ -3266,9 +3290,9 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 				int nr_zones, enum zone_type zone_type)
 {
 	struct zone *zone;
-	int i; //MWG
-	int j; //MWG
-	enum zone_type zidx; //MWG
+	int i; //vipzone
+	int j; //vipzone
+	enum zone_type zidx; //vipzone
 	int flag;
 
 	BUG_ON(zone_type >= MAX_NR_ZONES);
@@ -3284,7 +3308,7 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 		}
 	} while (zone_type);
 	
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 	
 	for (i=0; i < CONFIG_MAX_NR_VIPZONES; i++) { //Init dimm_write_zoneref_list
 		flag = 0;
@@ -3570,14 +3594,14 @@ static int default_zonelist_order(void)
 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
 			z = &NODE_DATA(nid)->node_zones[zone_type];
 			if (populated_zone(z)) {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 				if (zone_type < ZONE1)
 #else
 				if (zone_type < ZONE_NORMAL)
 #endif
 					low_kmem_size += z->present_pages;
 				total_size += z->present_pages;
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 			} else if (zone_type == ZONE1) {
 #else
 			} else if (zone_type == ZONE_NORMAL) {
@@ -3609,7 +3633,7 @@ static int default_zonelist_order(void)
 		for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++) {
 			z = &NODE_DATA(nid)->node_zones[zone_type];
 			if (populated_zone(z)) {
-#ifdef CONFIG_VIPZONE_BACK_END //MWG
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 				if (zone_type < ZONE1)
 #else
 				if (zone_type < ZONE_NORMAL)
@@ -5475,7 +5499,7 @@ out:
 /* Any regular memory on that node ? */
 static void check_for_regular_memory(pg_data_t *pgdat)
 {
-#ifdef CONFIG_HIGHMEM //MWG: This shouldn't happen. If we disable CONFIG_HIGHMEM and enable CONFIG_VIPZONE_BACK_END
+#ifdef CONFIG_HIGHMEM //Mark: This shouldn't happen. If we disable CONFIG_HIGHMEM and enable CONFIG_VIPZONE_BACK_END
 	enum zone_type zone_type;
 
 	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
