@@ -65,7 +65,7 @@ long sys_arch_prctl(int, unsigned long);
 asmlinkage long sys_mmap(unsigned long, unsigned long, unsigned long,
 			 unsigned long, unsigned long, unsigned long);
 
-#ifdef CONFIG_VIPZONE_FRONT_END
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
 //Extra parameter for vip_flags
 #ifndef sys_vip_mmap
 asmlinkage long sys_vip_mmap(unsigned long, unsigned long, unsigned long,

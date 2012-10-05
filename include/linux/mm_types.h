@@ -210,11 +210,10 @@ struct vm_area_struct {
 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 
-#ifdef CONFIG_VIPZONE_FRONT_END
-	/*Variation-aware flags - TODO: check with mark about this,
-    * since we need to merge the var flags
-    */
-   unsigned long vflags;
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
+	
+	//Variation-aware flags, set by vip_mmap() from userspace. We can't use vm_flags because all the bits are already used for other functions.
+   unsigned long vip_flags;
 #endif
 
 	struct rb_node vm_rb;
@@ -312,7 +311,7 @@ struct mm_struct {
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
 	int map_count;				/* number of VMAs */
 
-#ifdef CONFIG_VIPZONE_FRONT_END
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
 	/*unsigned long (*get_vip_unmapped_area) (struct file *filp,
 				unsigned long addr, unsigned long len,
 				unsigned long pgoff, unsigned long flags,

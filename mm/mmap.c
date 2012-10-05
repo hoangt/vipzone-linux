@@ -718,6 +718,21 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
 	return 0;
 }
 
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT_END
+/* Checks to make sure two adjacent vm_area_struct have the same vip_flags. This is useful for vma_merging as we don't want to merge two different power zones. */
+int have_equal_vip_flags(struct vm_area_struct *prev, struct vm_area_struct *next) {
+	if (prev && next && prev->vip_flags == next->vip_flags) {
+		printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): true!\n");
+		return 1;
+	}
+	else {
+		printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): false!\n");
+		return 0;
+	}
+}
+#endif
+
 /*
  * Given a mapping request (addr,end,vm_flags,file,pgoff), figure out
  * whether that can be merged with its predecessor or its successor.
@@ -777,21 +792,42 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	 */
 	if (prev && prev->vm_end == addr &&
   			mpol_equal(vma_policy(prev), policy) &&
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT_END
+			have_equal_vip_flags(prev, next) && //vipzone: check to make sure we don't merge high and low power areas
+#endif
 			can_vma_merge_after(prev, vm_flags,
 						anon_vma, file, pgoff)) {
 		/*
 		 * OK, it can.  Can we now merge in the successor as well?
 		 */
+
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT END
+		 printk(KERN_DEBUG "<vipzone> vma_merge(): We can merge with predecessor\n");
+#endif
 		if (next && end == next->vm_start &&
 				mpol_equal(policy, vma_policy(next)) &&
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT_END
+			have_equal_vip_flags(prev, next) && //vipzone: check to make sure we don't merge high and low power areas
+#endif
 				can_vma_merge_before(next, vm_flags,
 					anon_vma, file, pgoff+pglen) &&
 				is_mergeable_anon_vma(prev->anon_vma,
 						      next->anon_vma, NULL)) {
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT END
+		 printk(KERN_DEBUG "<vipzone> vma_merge(): We can merge with successor\n");
+#endif
 							/* cases 1, 6 */
 			err = vma_adjust(prev, prev->vm_start,
 				next->vm_end, prev->vm_pgoff, NULL);
 		} else					/* cases 2, 5, 7 */
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT END
+		 printk(KERN_DEBUG "<vipzone> vma_merge(): We cannot merge with successor\n");
+#endif
 			err = vma_adjust(prev, prev->vm_start,
 				end, prev->vm_pgoff, NULL);
 		if (err)
@@ -805,8 +841,16 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	 */
 	if (next && end == next->vm_start &&
  			mpol_equal(policy, vma_policy(next)) &&
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT_END
+			have_equal_vip_flags(prev, next) && //vipzone: check to make sure we don't merge high and low power areas
+#endif
 			can_vma_merge_before(next, vm_flags,
 					anon_vma, file, pgoff+pglen)) {
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT END
+		 printk(KERN_DEBUG "<vipzone> vma_merge(): We can merge in front of next\n");
+#endif
 		if (prev && addr < prev->vm_end)	/* case 4 */
 			err = vma_adjust(prev, prev->vm_start,
 				addr, prev->vm_pgoff, NULL);
@@ -1080,7 +1124,7 @@ EXPORT_SYMBOL(do_mmap_pgoff);
 #ifdef CONFIG_VIPZONE_FRONT_END
 unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			unsigned long len, unsigned long prot,
-			unsigned long flags, unsigned long vip_flags, unsigned long pgoff)
+			unsigned long flags, unsigned long pgoff)
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
@@ -1239,7 +1283,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	//addr = (unsigned long)pages_start;
 	//pgoff = ((unsigned long)pages_start)>>(unsigned long)PAGE_SHIFT;
 
-	return vip_mmap_region(file, addr, len, flags, vip_flags, vm_flags, pgoff);
+	return vip_mmap_region(file, addr, len, flags, vm_flags, pgoff);
 }
 EXPORT_SYMBOL(do_vip_mmap_pgoff);
 #endif
@@ -1292,7 +1336,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
-	unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags so we can process separately from flags
+	unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
 	struct user_struct *user = NULL;
 
 	printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [0]: Made it this far!\n");
@@ -1350,7 +1394,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	
 	printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [4]: calling do_vip_mmap_pgoff()\n");
 	down_write(&current->mm->mmap_sem); //Lock the semaphore for writing
-	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, vip_flags, pgoff); //do the real mmap work
+	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, pgoff); //do the real mmap work
 	up_write(&current->mm->mmap_sem); //Unlock the semaphore
 
 	if (file) //file cleanup
@@ -1595,7 +1639,7 @@ unacct_error:
 //vipzone
 #ifdef CONFIG_VIPZONE_FRONT_END
 unsigned long vip_mmap_region(struct file *file, unsigned long addr,
-			  unsigned long len, unsigned long flags, unsigned long vip_flags,
+			  unsigned long len, unsigned long flags,
 			  vm_flags_t vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
@@ -1657,8 +1701,10 @@ munmap_back:
 	 * Can we just expand an old mapping?
 	 */
 	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
-	if (vma)
+	if (vma) {
+		printk(KERN_DEBUG "<vipzone> vip_mmap_region: vma_merge() was successful\n");
 		goto out;
+	}
 
 	/*
 	 * Determine the object being mapped and call the appropriate
@@ -1677,6 +1723,7 @@ munmap_back:
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
+	vma->vip_flags = flags & _VIP_MASK; //vipzone: set the vip_flags in the vma
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
@@ -1747,7 +1794,7 @@ out:
 	if (vm_flags & VM_LOCKED) {
 		if (!mlock_vma_pages_range(vma, addr, addr + len))
 			mm->locked_vm += (len >> PAGE_SHIFT);
-	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
+	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK)) //vipzone: MAP_POPULATE forces virtual pages to actually be backed -- sortof. Does it by make_pages_present()
 		make_pages_present(addr, addr + len);
 	return addr;
 
@@ -1768,255 +1815,6 @@ unacct_error:
 	printk(KERN_WARNING "<vipzone> vip_mmap_region [13], unacct_error\n");
 	if (charged)
 		vm_unacct_memory(charged);
-	return error;
-}
-#endif
-
-#ifdef CONFIG_VIPZONE_FRONT_END
-//vipzone
-unsigned long vip_mmap_region_old(struct file *file, unsigned long addr,
-			  unsigned long len, unsigned long flags, unsigned long vip_flags,
-			  vm_flags_t vm_flags, unsigned long pgoff)
-{
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma, *prev;
-	int correct_wcount = 0;
-	int error;
-	struct rb_node **rb_link, *rb_parent;
-	unsigned long charged = 0;
-	struct inode *inode =  file ? file->f_path.dentry->d_inode : NULL;
-	
-	
-	unsigned long *pages_start;
-	unsigned int order;
-	unsigned long ret;
-	unsigned long size_tmp;
-	unsigned long start_addr;
-	
-	/* Clear old maps */
-	error = -ENOMEM;
-vip_munmap_back:
-	vma = find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
-	if (vma && vma->vm_start < addr + len) {
-		if (do_munmap(mm, addr, len))
-			return -ENOMEM;
-		goto vip_munmap_back;
-	}
-
-	/* Check against address space limit. */
-	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
-		return -ENOMEM;
-
-	/*
-	 * Set 'VM_NORESERVE' if we should not account for the
-	 * memory use of this mapping.
-	 */
-	if ((flags & MAP_NORESERVE)) {
-		/* We honor MAP_NORESERVE if allowed to overcommit */
-		if (sysctl_overcommit_memory != OVERCOMMIT_NEVER)
-			vm_flags |= VM_NORESERVE;
-
-		/* hugetlb applies strict overcommit unless MAP_NORESERVE */
-		if (file && is_file_hugepages(file))
-			vm_flags |= VM_NORESERVE;
-	}
-
-	/*
-	 * Private writable mapping: check memory availability
-	 */
-	if (accountable_mapping(file, vm_flags)) {
-		charged = len >> PAGE_SHIFT;
-		if (security_vm_enough_memory(charged))
-			return -ENOMEM;
-		vm_flags |= VM_ACCOUNT;
-	}
-	
-	
-	/*
-	 
-	 Doing the allocation
-	 
-	 */
-	
-	order = get_order(len);
-
-	printk(KERN_DEBUG "<vipzone> vip_mmap_region [1]: page order = %u\n", order);
-	
-	size_tmp = PAGE_SIZE * (1<<order);
-	ret = 0;
-	start_addr = pages_start;
-	
-	printk(KERN_DEBUG "<vipzone> vip_mmap_region [2]: ACTUALLY GETTING PAGES! Calling __get_free_pages()...\n");
-
-	pages_start = (unsigned long *)__get_free_pages(GFP_KERNEL, order); /* Need to do power of 2*/
-	
-	if (!pages_start)
-	{
-	  printk(KERN_DEBUG "<vipzone> vip_mmap_region [3]: ERROR = -ENOMEM, could not get %lu Bytes worth of pages (order %u)\n", len, order);
-	  memset(pages_start, 0, PAGE_SIZE << order);
-	  return -ENOMEM;
-	}
-	else {
-	  printk(KERN_DEBUG "<vipzone> vip_mmap_region [4]: We got %lu Bytes worth of pages (2^%u) @ (a=0x%lx, off=0x%lx, p1=0x%lx, p2=0x%lx)\n", 
-			 len, order, (unsigned long)pages_start, ((unsigned long)pages_start)>>(unsigned long)PAGE_SHIFT, 
-			 virt_to_phys((void*)((unsigned long)pages_start)), __pa(pages_start)>>PAGE_SHIFT);
-	}
-	
-   printk(KERN_DEBUG "<vipzone> vip_mmap_region [5]: Remapping %lu (v=%lu) to %lu,\n", (unsigned long)pages_start, virt_to_phys((void*)pages_start)>>PAGE_SHIFT, vma->vm_start);
-	if((ret=remap_pfn_range(vma, vma->vm_start, 
-		virt_to_phys((void*)pages_start)>>PAGE_SHIFT, 
-		vma->vm_end - vma->vm_start, vma->vm_page_prot))<0) { 
-	  
-
-		return ret;
-	} // else return regular space
-	
-	
-	while(size_tmp > 0)
-	{
-	   printk(KERN_DEBUG "<vipzone> vip_mmap_region [6]: Locking page @ %lu (v=%lu),\n", 
-			 (unsigned long)pages_start, 
-			 virt_to_phys((void*)pages_start));
-	   
-	  SetPageReserved(virt_to_page((void*)start_addr));
-	  get_page(virt_to_page((void*)start_addr));
-	  start_addr += PAGE_SIZE;
-	  size_tmp -=  PAGE_SIZE;
-	}
-	
-	
-	//return (unsigned long)pages_start;
-	//free_pages((unsigned long)pages_start, order);
-
-	/*
-	 * Can we just expand an old mapping?
-	 */
-	
-	/*
-	 * We need to merge with VIP zones, not regular zones
-	 * 	for now, disable merging of vip zones. Might be able to use vm_flags once
-	 *	we merge them with vflags
-	 * The following lines will be commented out.
-	 */
-	
-	// Merging turned off
-	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
-	if (vma)
-		goto vip_out;
-	//
-	
-	printk(KERN_WARNING "<vipzone> vip_mmap_region[7]: failed to merge vma for address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
-	
-	
-	/*
-	 * Determine the object being mapped and call the appropriate
-	 * specific mapper. the address has already been validated, but
-	 * not unmapped, but the maps are removed from the list.
-	 */
-	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
-	if (!vma) {
-		error = -ENOMEM;
-		goto vip_unacct_error;
-	}
-
-	vma->vm_mm = mm;
-	vma->vm_start = addr;
-	vma->vm_end = addr + len;
-	vma->vm_flags = vm_flags;
-	/* Might be unecessary to have two fields, may use vm_flags*/
-//	vma->vm_flags = vip_flags;
-	vma->vm_page_prot = vm_get_page_prot(vm_flags);
-	vma->vm_pgoff = pgoff;
-	INIT_LIST_HEAD(&vma->anon_vma_chain);
-
-	if (file) {
-		error = -EINVAL;
-		if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
-			goto vip_free_vma;
-		if (vm_flags & VM_DENYWRITE) {
-			error = deny_write_access(file);
-			if (error)
-				goto vip_free_vma;
-			correct_wcount = 1;
-		}
-		vma->vm_file = file;
-		get_file(file);
-		error = file->f_op->mmap(file, vma);
-		if (error)
-			goto vip_unmap_and_free_vma;
-		if (vm_flags & VM_EXECUTABLE)
-			added_exe_file_vma(mm);
-
-		/* Can addr have changed??
-		 *
-		 * Answer: Yes, several device drivers can do it in their
-		 *         f_op->mmap method. -DaveM
-		 */
-		addr = vma->vm_start;
-		pgoff = vma->vm_pgoff;
-		vm_flags = vma->vm_flags;
-	} else if (vm_flags & VM_SHARED) {
-		error = shmem_zero_setup(vma);
-		if (error)
-			goto vip_free_vma;
-	}
-
-	if (vma_wants_writenotify(vma)) {
-		pgprot_t pprot = vma->vm_page_prot;
-
-		/* Can vma->vm_page_prot have changed??
-		 *
-		 * Answer: Yes, drivers may have changed it in their
-		 *         f_op->mmap method.
-		 *
-		 * Ensures that vmas marked as uncached stay that way.
-		 */
-		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
-		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	}
-
-	vma_link(mm, vma, prev, rb_link, rb_parent);
-	file = vma->vm_file;
-
-	/* Once vma denies write, undo our temporary denial count */
-	if (correct_wcount)
-		atomic_inc(&inode->i_writecount);
-vip_out:
-	perf_event_mmap(vma);
-
-	mm->total_vm += len >> PAGE_SHIFT;
-	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
-	if (vm_flags & VM_LOCKED) {
-		if (!mlock_vma_pages_range(vma, addr, addr + len))
-			mm->locked_vm += (len >> PAGE_SHIFT);
-	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK))
-		make_pages_present(addr, addr + len);
-	
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [8]: vip_out - mmap returning address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
-	
-	return addr;
-
-vip_unmap_and_free_vma:
-	if (correct_wcount)
-		atomic_inc(&inode->i_writecount);
-	vma->vm_file = NULL;
-	fput(file);
-
-	/* Undo any partial mapping done by a device driver. */
-	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
-	charged = 0;
-	
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [9]: unmap_region called for address: %lu to %lu, total vm = %lu\n", vma->vm_start, vma->vm_end, mm->total_vm);
-	 
-vip_free_vma:
-	kmem_cache_free(vm_area_cachep, vma);
-vip_unacct_error:
-	if (charged)
-		vm_unacct_memory(charged);
-	
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [10]: returning error %d for addr %lu to %lu, total vm = %lu\n", error, addr, addr + len, mm->total_vm);
-	 
 	return error;
 }
 #endif

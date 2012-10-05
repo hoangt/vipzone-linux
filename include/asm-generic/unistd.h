@@ -902,7 +902,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #endif
 #endif
 
-#ifdef CONFIG_VIPZONE_FRONT_END
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
 #define __NR_vip_mmap (__NR_syscalls+1)
 __SYSCALL(__NR_vip_mmap, sys_vip_mmap)
 

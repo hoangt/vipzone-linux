@@ -1819,7 +1819,8 @@ this_zone_full:
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
- * Mark: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
+ * vipzone: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
+ * THIS NEEDS REVISIONS
  */
 static struct page *
 get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
@@ -1834,10 +1835,8 @@ get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned in
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
+	int priority_index; //vipzone
 
-	int priority_index;
-#endif
 	classzone_idx = zone_idx(preferred_zone);
 
 zonelist_scan:
@@ -1845,18 +1844,14 @@ zonelist_scan:
 	 * Scan zonelist, looking for a zone with enough free.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
-
+	
+	//vipzone -- THIS NEEDS TO BE UPDATED
 	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
 		z = dimm_write_zoneref_list[priority_index];
 		if (z->zone_idx > high_zoneidx) //This should only happen for DMA or DMA32 requests, if supported
 			continue; //Move to the next lowest-power DIMM
 		zone = z->zone;	
 
-#else
-	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-						high_zoneidx, nodemask) {
-#endif
 		if (NUMA_BUILD && zlc_active &&
 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
 				continue;
@@ -2514,8 +2509,8 @@ restart:
 	 * cpusets.
 	 */
 	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
 
+	//vipzone
 	preferred_zone = NULL; //Use as a flag.
 
 	#ifdef CONFIG_ZONE_DMA
@@ -2538,10 +2533,6 @@ restart:
 
 	if (!preferred_zone)
 		preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
-#else
-		first_zones_zonelist(zonelist, high_zoneidx, NULL,
-					&preferred_zone);
-#endif
 
 rebalance:
 	/* This is the last chance, in general, before the goto nopage. */
@@ -2624,11 +2615,9 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
+
+				//vipzone
 				if (high_zoneidx < ZONE1)
-#else
-				if (high_zoneidx < PG)
-#endif
 					goto nopage;
 			}
 
@@ -2690,21 +2679,20 @@ struct zone * vipzone_choose(unsigned long vip_flags, bool need_dma32, enum zone
 			 * Switch against vipzone typ: read or write?
 			 */
 			switch (vip_flags & _VIP_TYP_MASK) { 
-				case _VIP_TYP_WRITE:
-					for (i = 0; i < nr_dimms + ZONE1; i++)
+				case _VIP_TYP_WRITE: //get low power write zone
+					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
 							if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
 								return dimm_write_zoneref_list[i]->zone;
 					break;
 
 				default: 
-				case _VIP_TYP_READ:
-					for (i = 0; i < nr_dimms + ZONE1; i++)
+				case _VIP_TYP_READ: //get low power read zone
+					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
 							if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
 								return dimm_read_zoneref_list[i]->zone;
 					break;
 			}
 			break;
-	
 
 
 		default:
@@ -2713,23 +2701,24 @@ struct zone * vipzone_choose(unsigned long vip_flags, bool need_dma32, enum zone
 			 * Switch against vipzone typ: read or write?
 			 */
 			switch (vip_flags & _VIP_TYP_MASK) {
-				case _VIP_TYP_WRITE:
-					for (i = 0; i < nr_dimms + ZONE1; i++)
+				case _VIP_TYP_WRITE: //get zone with most free space, by traversing write list
+					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
 						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
 							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
 							emptiest_zone = dimm_write_zoneref_list[i]->zone;
 						}
-					return emptiest_zone;
-					
+					break;
+
 				default:
-				case _VIP_TYP_READ:
-					for (i = 0; i < nr_dimms + ZONE1; i++)
+				case _VIP_TYP_READ: //get zone with most free space, by traversing read list
+					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
 							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
 							emptiest_zone = dimm_read_zoneref_list[i]->zone;
 						}
-					return emptiest_zone;
+					break;
 			}
+			return emptiest_zone;
 	}
 	
 	return NULL; //OUT OF LUCK!
@@ -2749,16 +2738,12 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned long vip_flags, unsigned
 			struct zonelist *zonelist, nodemask_t *nodemask)
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-	struct zone *preferred_zone;
-	struct zone *finalZone; 
-	struct page *page;
+	struct zone *preferred_zone = NULL;
+	struct zone *finalZone = NULL; 
+	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	
-	int i = 0;	
 	static unsigned long iter = 0;
-
-#define NEED_DMA32 1
-#define NO_NEED_DMA32 0
 
 	gfp_mask &= gfp_allowed_mask;
 
@@ -2787,24 +2772,20 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned long vip_flags, unsigned
 	#endif
 
 	#ifdef CONFIG_ZONE_DMA32
-	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
-	/*	for (i = 0; i < nr_dimms; i++) 
-			if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
-				preferred_zone = dimm_write_zoneref_list[i]->zone;
-				break;
-			} */
-		preferred_zone = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx); //UNDER CONSTRUCTION
-	}
+	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) //If allocation wants DMA32 compatible...
+		preferred_zone = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx);
 	
-	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
-		printk(KERN_WARNING "<vipzone> DMA32 request did not find a suitable DIMM zone!\n");
+	if (unlikely(preferred_zone == NULL)) { //No DMA32 match, this is a bug
+		if (iter % 50000 == 0)
+			printk(KERN_WARNING "<vipzone> DMA32 request did not find a suitable DIMM zone! This is a bug!\n");
+	}
 	#endif
 
-	if (!preferred_zone)
-		//preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
+	//Pick our preferred vipzone given vip_flags
+	if (likely(!preferred_zone))
 		preferred_zone = vipzone_choose(vip_flags, NO_NEED_DMA32, high_zoneidx);
 	
-	if (!preferred_zone) {
+	if (unlikely(!preferred_zone)) {
 		put_mems_allowed();
 		return NULL;
 	}
@@ -2842,12 +2823,14 @@ struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 			struct zonelist *zonelist, nodemask_t *nodemask)
 {
-#ifdef CONFIG_VIPZONE_BACK_END
+
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone: if this function ever gets called, make sure we default to our vipzone using default vip_flags of read/low
 static unsigned long seen = 0;
 	if (seen++ % 50000 == 0) 
 		printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask(): VIPZONE enabled, using __alloc_pages_nodemask_vipzone() instead\n");
 	
 	return __alloc_pages_nodemask_vipzone(gfp_mask, (_VIP_TYP_READ | _VIP_UTIL_LO), order, zonelist, nodemask); //go to vipzone, use default flags since none were provided
+
 #else //default
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	struct zone *preferred_zone;

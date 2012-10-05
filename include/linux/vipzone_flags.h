@@ -1,6 +1,10 @@
 //vipzone
 
 #ifdef CONFIG_VIPZONE_FRONT_END
+
+#define NEED_DMA32 1
+#define NO_NEED_DMA32 0
+
 #ifndef _VIPZONE_FLAGS
 #define _VIPZONE_FLAGS
 

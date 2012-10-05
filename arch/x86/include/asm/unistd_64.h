@@ -687,7 +687,7 @@ __SYSCALL(__NR_process_vm_readv, sys_process_vm_readv)
 #define __NR_process_vm_writev			311
 __SYSCALL(__NR_process_vm_writev, sys_process_vm_writev)
 
-#ifdef CONFIG_VIPZONE_FRONT_END
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
 #define __NR_vip_mmap				312
 __SYSCALL(__NR_vip_mmap, sys_vip_mmap)
 #define __NR_vip_mmap_pgoff				313

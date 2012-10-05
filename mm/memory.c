@@ -3398,13 +3398,13 @@ int handle_pte_fault(struct mm_struct *mm,
 					return do_linear_fault(mm, vma, address,
 						pte, pmd, flags, entry);
 			}
-			return do_anonymous_page(mm, vma, address,
+			return do_anonymous_page(mm, vma, address, //vipzone: this is a path to alloc_pages_vma
 						 pte, pmd, flags);
 		}
 		if (pte_file(entry))
 			return do_nonlinear_fault(mm, vma, address,
 					pte, pmd, flags, entry);
-		return do_swap_page(mm, vma, address,
+		return do_swap_page(mm, vma, address, //vipzone: this is a path to alloc_pages_vma
 					pte, pmd, flags, entry);
 	}
 
@@ -3414,7 +3414,7 @@ int handle_pte_fault(struct mm_struct *mm,
 		goto unlock;
 	if (flags & FAULT_FLAG_WRITE) {
 		if (!pte_write(entry))
-			return do_wp_page(mm, vma, address,
+			return do_wp_page(mm, vma, address, //vipzone: this is a path to alloc_pages_vma
 					pte, pmd, ptl, entry);
 		entry = pte_mkdirty(entry);
 	}

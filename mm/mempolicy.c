@@ -1850,9 +1850,12 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 //vipzone
 #ifdef CONFIG_VIPZONE_BACK_END
 	unsigned long vip_flags = 0;
+
+	printk(KERN_DEBUG "<vipzone> alloc_pages_vma() called...\n");
+
 	if (vma) {
 		vip_flags = vma->vip_flags;
-		if (!is_vip_flags_legal(vip_flags))
+		if (vip_flags & ~_VIP_MASK != 0) //Check for vip_flags legality -- only the defined bits should be set!!
 			printk(KERN_WARNING "<vipzone> alloc_pages_vma() [1]: WARNING: illegal vip_flags from vma!\n");
 		else
 			printk(KERN_WARNING "<vipzone> alloc_pages_vma() [2]: vip_flags are %lu\n", vip_flags);
