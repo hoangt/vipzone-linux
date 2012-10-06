@@ -1819,8 +1819,6 @@ this_zone_full:
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
- * vipzone: Modified version of the function for choosing zones based on dimm_zone_ordering[], and for reporting the actual allocated zone.
- * THIS NEEDS REVISIONS
  */
 static struct page *
 get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
@@ -2734,7 +2732,7 @@ struct zone * vipzone_choose(unsigned long vip_flags, bool need_dma32, enum zone
 //vipzone
 #ifdef CONFIG_VIPZONE_BACK_END
 struct page *
-__alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned long vip_flags, unsigned int order,
+__alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_area_struct *vma,
 			struct zonelist *zonelist, nodemask_t *nodemask)
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
@@ -2742,8 +2740,8 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned long vip_flags, unsigned
 	struct zone *finalZone = NULL; 
 	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
-	
 	static unsigned long iter = 0;
+	unsigned long vip_flags = 0;
 
 	gfp_mask &= gfp_allowed_mask;
 
@@ -2753,6 +2751,18 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned long vip_flags, unsigned
 
 	if (should_fail_alloc_page(gfp_mask, order))
 		return NULL;
+
+	//Extract vip_flags from the vma if given
+	if (vma) {
+		vip_flags = vma->vip_flags;
+		if (iter % 50000 == 0)
+			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): vma WORKED!!!!\n");
+	}
+	else {
+		vip_flags = _VIP_TYP_READ | _VIP_UTIL_LO; //default flag values
+		if (iter % 50000 == 0)
+			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): vma was NULL, picked default READ/LO vip_flags. This is probably because we have a non-vipzone path to here.\n");
+	}
 
 	/*
 	 * Check the zones suitable for the gfp_mask contain at least one
@@ -2829,7 +2839,7 @@ static unsigned long seen = 0;
 	if (seen++ % 50000 == 0) 
 		printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask(): VIPZONE enabled, using __alloc_pages_nodemask_vipzone() instead\n");
 	
-	return __alloc_pages_nodemask_vipzone(gfp_mask, (_VIP_TYP_READ | _VIP_UTIL_LO), order, zonelist, nodemask); //go to vipzone, use default flags since none were provided
+	return __alloc_pages_nodemask_vipzone(gfp_mask, order, NULL, zonelist, nodemask); //go to vipzone, pass NULL vma since we don't have one
 
 #else //default
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);

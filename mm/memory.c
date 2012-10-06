@@ -2637,11 +2637,11 @@ gotten:
 		goto oom;
 
 	if (is_zero_pfn(pte_pfn(orig_pte))) {
-		new_page = alloc_zeroed_user_highpage_movable(vma, address);
+		new_page = alloc_zeroed_user_highpage_movable(vma, address); //vipzone: this is a path
 		if (!new_page)
 			goto oom;
 	} else {
-		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address); //vipzone: this is a path
 		if (!new_page)
 			goto oom;
 		cow_user_page(new_page, old_page, address, vma);
@@ -2881,7 +2881,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	page = lookup_swap_cache(entry);
 	if (!page) {
 		grab_swap_token(mm); /* Contend for token _before_ read-in */
-		page = swapin_readahead(entry,
+		page = swapin_readahead(entry, //vipzone: is this a path?
 					GFP_HIGHUSER_MOVABLE, vma, address);
 		if (!page) {
 			/*
@@ -2937,7 +2937,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		}
 	}
 
-	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
+	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) { 
 		ret = VM_FAULT_OOM;
 		goto out_page;
 	}
@@ -3001,7 +3001,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	if (flags & FAULT_FLAG_WRITE) {
-		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
+		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte); //vipzone: this is a path
 		if (ret & VM_FAULT_ERROR)
 			ret &= VM_FAULT_ERROR;
 		goto out;
@@ -3093,7 +3093,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	/* Allocate our own private page. */
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
-	page = alloc_zeroed_user_highpage_movable(vma, address);
+	page = alloc_zeroed_user_highpage_movable(vma, address); //vipzone: this is a path
 	if (!page)
 		goto oom;
 	__SetPageUptodate(page);
@@ -3395,16 +3395,16 @@ int handle_pte_fault(struct mm_struct *mm,
 		if (pte_none(entry)) {
 			if (vma->vm_ops) {
 				if (likely(vma->vm_ops->fault))
-					return do_linear_fault(mm, vma, address,
+					return do_linear_fault(mm, vma, address, //vipzone: this is a path
 						pte, pmd, flags, entry);
 			}
-			return do_anonymous_page(mm, vma, address, //vipzone: this is a path to alloc_pages_vma
+			return do_anonymous_page(mm, vma, address, //vipzone: this is a path
 						 pte, pmd, flags);
 		}
 		if (pte_file(entry))
-			return do_nonlinear_fault(mm, vma, address,
+			return do_nonlinear_fault(mm, vma, address, //vipzone: this is a path
 					pte, pmd, flags, entry);
-		return do_swap_page(mm, vma, address, //vipzone: this is a path to alloc_pages_vma
+		return do_swap_page(mm, vma, address, //vipzone: this is a path
 					pte, pmd, flags, entry);
 	}
 
@@ -3414,7 +3414,7 @@ int handle_pte_fault(struct mm_struct *mm,
 		goto unlock;
 	if (flags & FAULT_FLAG_WRITE) {
 		if (!pte_write(entry))
-			return do_wp_page(mm, vma, address, //vipzone: this is a path to alloc_pages_vma
+			return do_wp_page(mm, vma, address, //vipzone: this is a path
 					pte, pmd, ptl, entry);
 		entry = pte_mkdirty(entry);
 	}

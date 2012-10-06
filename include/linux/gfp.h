@@ -314,9 +314,29 @@ static inline void arch_free_page(struct page *page, int order) { }
 static inline void arch_alloc_page(struct page *page, int order) { }
 #endif
 
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+struct page *
+__alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_area_struct *vma,
+		       struct zonelist *zonelist, nodemask_t *nodemask);
+#endif
+
+
 struct page *
 __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 		       struct zonelist *zonelist, nodemask_t *nodemask);
+
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+
+static inline struct page *
+__alloc_pages_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_area_struct *vma,
+		struct zonelist *zonelist)
+{
+	return __alloc_pages_nodemask_vipzone(gfp_mask, order, vma, zonelist, NULL);
+}
+
+#endif
 
 static inline struct page *
 __alloc_pages(gfp_t gfp_mask, unsigned int order,
@@ -324,6 +344,19 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 {
 	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
 }
+
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+static inline struct page *alloc_pages_node_vipzone(int nid, gfp_t gfp_mask,
+						unsigned int order, struct vm_area_struct *vma)
+{
+	/* Unknown node is current node */
+	if (nid < 0)
+		nid = numa_node_id();
+
+	return __alloc_pages_vipzone(gfp_mask, order, vma, node_zonelist(nid, gfp_mask));
+}
+#endif
 
 static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
@@ -355,11 +388,34 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
 			struct vm_area_struct *vma, unsigned long addr,
 			int node);
 #else
+
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+
+	#define alloc_pages_vipzone(gfp_mask, order, vma) \
+		alloc_pages_node_vipzone(numa_node_id(), gfp_mask, order, vma);
+	#define alloc_pages_vma(gfp_mask, order, vma, addr, node) \
+		alloc_pages_vipzone(gfp_mask, order, vma);
+
+#else //not vipzone
+
+	#define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
+		alloc_pages(gfp_mask, order)
+
+#endif  //end vipzone
+
+	#define alloc_pages(gfp_mask, order) \
+		alloc_pages_node(numa_node_id(), gfp_mask, order)
+	#define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+	#define alloc_page_vma(gfp_mask, vma, addr)			\
+		alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())
+	#define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
+		alloc_pages_vma(gfp_mask, 0, vma, addr, node)
+
+#endif
+
 #define alloc_pages(gfp_mask, order) \
 		alloc_pages_node(numa_node_id(), gfp_mask, order)
-#define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
-	alloc_pages(gfp_mask, order)
-#endif
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 #define alloc_page_vma(gfp_mask, vma, addr)			\
 	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())

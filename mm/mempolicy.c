@@ -1847,31 +1847,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 	struct zonelist *zl;
 	struct page *page;
 
-//vipzone
-#ifdef CONFIG_VIPZONE_BACK_END
-	unsigned long vip_flags = 0;
-
-	printk(KERN_DEBUG "<vipzone> alloc_pages_vma() called...\n");
-
-	if (vma) {
-		vip_flags = vma->vip_flags;
-		if (vip_flags & ~_VIP_MASK != 0) //Check for vip_flags legality -- only the defined bits should be set!!
-			printk(KERN_WARNING "<vipzone> alloc_pages_vma() [1]: WARNING: illegal vip_flags from vma!\n");
-		else
-			printk(KERN_WARNING "<vipzone> alloc_pages_vma() [2]: vip_flags are %lu\n", vip_flags);
-	}
-	else
-		printk(KERN_WARNING "<vipzone> alloc_pages_vma() [3]: WARNING: vma is NULL!\n");
-#endif
-
 	get_mems_allowed();
 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
-
-//vipzone
-#ifdef CONFIG_VIPZONE_BACK_END
-		printk(KERN_WARNING "<vipzone> alloc_pages_vma() [4]: Went into MPOL_INTERLEAVE. Why..?\n");
-#endif
-		
 		unsigned nid;
 
 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
@@ -1885,16 +1862,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 		/*
 		 * slow path: ref counted shared policy
 		 */
-
-//vipzone
-#ifdef CONFIG_VIPZONE_BACK_END
-		printk(KERN_WARNING "<vipzone> alloc_pages_vma() [5]: Went into slow path, calling alloc_pages_nodemask with vip_flags\n");
-		struct page *page =  __alloc_pages_nodemask_vipzone(gfp, vip_flags, order, //vipzone: pass our vipzone flags into the physical allocator
-						zl, policy_nodemask(gfp, pol));
-#else
 		struct page *page =  __alloc_pages_nodemask(gfp, order,
 						zl, policy_nodemask(gfp, pol));
-#endif
 		__mpol_put(pol);
 		put_mems_allowed();
 		return page;
@@ -1902,14 +1871,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 	/*
 	 * fast path:  default or task policy
 	 */
-#ifdef CONFIG_VIPZONE_BACK_END
-	printk(KERN_WARNING "<vipzone> alloc_pages_vma() [6]: Went into fast path, calling alloc_pages_nodemask with vip_flags\n");
-	page = __alloc_pages_nodemask_vipzone(gfp, vip_flags, order, zl, //vipzone: pass our vipzone flags into the physical allocator
-				      policy_nodemask(gfp, pol));
-#else
 	page = __alloc_pages_nodemask(gfp, order, zl,
 				      policy_nodemask(gfp, pol));
-#endif
 
 	put_mems_allowed();
 	return page;

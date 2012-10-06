@@ -722,12 +722,10 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
 #ifdef CONFIG_VIPZONE_FRONT_END
 /* Checks to make sure two adjacent vm_area_struct have the same vip_flags. This is useful for vma_merging as we don't want to merge two different power zones. */
 int have_equal_vip_flags(struct vm_area_struct *prev, struct vm_area_struct *next) {
-	if (prev && next && prev->vip_flags == next->vip_flags) {
-		printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): true!\n");
+	if (prev && next && prev->vip_flags == next->vip_flags)
 		return 1;
-	}
 	else {
-		printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): false!\n");
+		printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): false! This should block vma_merge()\n");
 		return 0;
 	}
 }
