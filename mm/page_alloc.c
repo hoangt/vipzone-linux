@@ -305,6 +305,102 @@ EXPORT_SYMBOL(nr_online_nodes);
 
 int page_group_by_mobility_disabled __read_mostly;
 
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, enum zone_type high_zoneidx, int startingRank) {
+	int i = 0; //iterator
+	//struct zone *emptiest_zone = NULL; //for case _VIP_UTIL_LO, this will be set to the zone with the most free space
+	//unsigned long most_free_space = 0; //in pages. Corresponds to the emptiest zone.
+
+	if (startingRank < 0 || startingRank > nr_dimms-1) {
+		printk(KERN_WARNING "<vipzone> vipzone_choose(): startingRank was out of bounds! Assuming 0, for highest rank");
+		startingRank = 0;
+	}
+
+#ifdef CONFIG_DMA32
+	if (unlikely(dma_dma_32_needed == NEED_DMA32)) //Constrain DMA32 if necessary
+		if (unlikely(high_zoneidx != max_dimm_zone_for_dma32)) {
+			printk(KERN_DEBUG "<vipzone> vipzone_choose(): allocation needs DMA32, but high_zoneidx does not indicate max_dimm_zone_for_dma32\n");
+			high_zoneidx = max_dimm_zone_for_dma32;
+		}
+#endif
+
+#ifdef CONFIG_DMA
+	if (unlikely(dma_dma32_needed == NEED_DMA)) //Constrain DMA if necessary
+		if (unlikely(high_zoneidx != ZONE_DMA)) {
+			printk(KERN_DEBUG "<vipzone> vipzone_choose(): allocation needs DMA, but high_zoneidx does not indicate ZONE_DMA\n");
+			high_zoneidx = ZONE_DMA;
+		}
+#endif
+	
+	/*
+	 * Switch against vipzone util: hi or lo util?
+	 */
+	switch (vip_flags & _VIP_UTIL_MASK) { 
+		case _VIP_UTIL_HI:
+			/*
+			 * Switch against vipzone typ: read or write?
+			 */
+			switch (vip_flags & _VIP_TYP_MASK) { 
+				case _VIP_TYP_WRITE: //get low write power zone
+					for (i = startingRank+ZONE1; i < nr_dimms + ZONE1; i++)
+							if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
+								return dimm_write_zoneref_list[i];
+					break;
+
+				default: 
+				case _VIP_TYP_READ: //get low read power zone
+					for (i = startingRank+ZONE1; i < nr_dimms + ZONE1; i++)
+							if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
+								return dimm_read_zoneref_list[i];
+					break;
+			}
+			break;
+
+
+		default:
+		case _VIP_UTIL_LO:
+			/*
+			 * Switch against vipzone typ: read or write?
+			 */
+			switch (vip_flags & _VIP_TYP_MASK) {
+				case _VIP_TYP_WRITE:
+					//Get high write power zone
+					for (i = nr_dimms-1-startingRank; i >= ZONE1; i--)
+							if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
+								return dimm_write_zoneref_list[i];
+
+
+					//alternative implementation: get zone with most free space by traversing write list
+/*					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_write_zoneref_list[i]->zone;
+						}*/
+					break;
+
+				default:
+				case _VIP_TYP_READ:
+					//Get high read power zone
+					for (i = nr_dimms-1-startingRank; i >= ZONE1; i--)
+							if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
+								return dimm_read_zoneref_list[i];
+	
+					//alternative implementation: get zone with most free space by traversing read list
+				/*	for (i = ZONE1; i < nr_dimms + ZONE1; i++)
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
+							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
+							emptiest_zone = dimm_read_zoneref_list[i]->zone;
+						} */
+					break;
+			}
+			//return emptiest_zone;
+	}
+	
+	return NULL; //OUT OF LUCK!
+}
+#endif
+
 static void set_pageblock_migratetype(struct page *page, int migratetype)
 {
 
@@ -1717,6 +1813,172 @@ static void zlc_clear_zones_full(struct zonelist *zonelist)
 }
 #endif	/* CONFIG_NUMA */
 
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
+/*
+ * get_page_from_freelist goes through the zonelist trying to allocate
+ * a page.
+ */
+static struct page *
+get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order, unsigned long vip_flags,
+		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
+		struct zone *preferred_zone, int migratetype, struct zone **finalZone)
+{
+	struct zoneref *z = NULL;
+	struct page *page = NULL;
+	int classzone_idx = 0;
+	struct zone *zone = NULL;
+	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+	int zlc_active = 0;		/* set if using zonelist_cache */
+	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+
+	int zone_index; //vipzone
+	//struct zoneref *dimm_freeorder_zoneref_list[CONFIG_MAX_NR_VIPZONES]; //vipzone
+	//struct zoneref temp;
+	//int i = 0;
+	//int pass = 0;
+	
+	classzone_idx = zone_idx(preferred_zone);
+
+	//build list based on free space if util is lo
+	/*
+	if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_LO) {
+		//init list
+		for (i = 0; i < nr_dimms; i++)
+			dimm_freeorder_zoneref_list[i] = dimm_write_zoneref_list[i];
+
+		//bubble sort, decreasing free space
+		for (pass = 0; pass < nr_dimms; pass++)
+			for (i = 0; i < nr_dimms-1; i++) 
+				if (zone_page_state(dimm_freeorder_zoneref_list[i]->zone, NR_FREE_PAGES) < zone_page_state(dimm_freeorder_zoneref_list[i+1]->zone, NR_FREE_PAGES)) {
+					temp = *dimm_freeorder_zoneref_list[i];
+					*dimm_freeorder_zoneref_list[i] = *dimm_freeorder_zoneref_list[i+1];
+					*dimm_freeorder_zoneref_list[i+1] = temp;
+				}
+	} */
+zonelist_scan:
+	/*
+	 * Scan zonelist, looking for a zone with enough free.
+	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+	 */
+	
+	//vipzone
+	for (zone_index = 0; zone_index < nr_dimms; zone_index++) {
+		z = NULL; //use as a flag
+#ifdef CONFIG_DMA32
+		if ((gfp_mask & __GFP_DMA32)) 
+			z = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, zone_index);
+#endif
+#ifdef CONFIG_DMA
+		if ((gfp_mask & __GFP_DMA) && likely(!z)) 
+			z = vipzone_choose(vip_flags, NEED_DMA, high_zoneidx, zone_index);
+#endif
+
+		if (likely(!z)) 
+			z = vipzone_choose(vip_flags, NO_NEED_DMA_DMA32, high_zoneidx, zone_index);
+
+/*
+		if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_HI) { //high util
+			if ((vip_flags & _VIP_TYP_MASK) ==_VIP_TYP_WRITE) //write
+				z = dimm_write_zoneref_list[zone_index]; //get low write power zone
+			else //read
+				z = dimm_read_zoneref_list[zone_index]; //get low read power zone
+		} else { //low util
+			if ((vip_flags & _VIP_TYP_MASK) ==_VIP_TYP_WRITE) //write
+				z = dimm_write_zoneref_list[nr_dimms-1-zone_index]; //get high write power zone
+			else //read
+				z = dimm_read_zoneref_list[nr_dimms-1-zone_index]; //get high read power zone
+		}*/
+/*
+		if (z->zone_idx > high_zoneidx) //This should only happen for DMA or DMA32 requests, if supported
+			continue; //Move to the next DIMM */
+		if (likely(z))
+			zone = z->zone;
+		else {
+			printk(KERN_WARNING "<vipzone> get_page_from_freelist_vipzone(): zoneref z was NULL! This is bad.\n");
+			return NULL; 
+		}
+
+		if (NUMA_BUILD && zlc_active &&
+			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+				continue;
+		if ((alloc_flags & ALLOC_CPUSET) &&
+			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+				continue;
+
+		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+			unsigned long mark;
+			int ret;
+
+			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+			if (zone_watermark_ok(zone, order, mark,
+				    classzone_idx, alloc_flags))
+				goto try_this_zone;
+
+			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
+				/*
+				 * we do zlc_setup if there are multiple nodes
+				 * and before considering the first zone allowed
+				 * by the cpuset.
+				 */
+				allowednodes = zlc_setup(zonelist, alloc_flags);
+				zlc_active = 1;
+				did_zlc_setup = 1;
+			}
+
+			if (zone_reclaim_mode == 0)
+				goto this_zone_full;
+
+			/*
+			 * As we may have just activated ZLC, check if the first
+			 * eligible zone has failed zone_reclaim recently.
+			 */
+			if (NUMA_BUILD && zlc_active &&
+				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+				continue;
+
+			ret = zone_reclaim(zone, gfp_mask, order);
+			switch (ret) {
+			case ZONE_RECLAIM_NOSCAN:
+				/* did not scan */
+				continue;
+			case ZONE_RECLAIM_FULL:
+				/* scanned but unreclaimable */
+				continue;
+			default:
+				/* did we reclaim enough */
+				if (!zone_watermark_ok(zone, order, mark,
+						classzone_idx, alloc_flags))
+					goto this_zone_full;
+			}
+		}
+
+try_this_zone:
+		page = buffered_rmqueue(preferred_zone, zone, order,
+						gfp_mask, migratetype);
+		if (page)
+			break;
+this_zone_full:
+		if (NUMA_BUILD)
+			zlc_mark_zone_full(zonelist, z);
+	}
+
+	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
+		/* Disable zlc cache for second zonelist scan */
+		zlc_active = 0;
+		goto zonelist_scan;
+	}
+	
+	if (finalZone) //vipzone: check for NULL
+		*finalZone = zone;
+	else
+		*finalZone = NULL;
+	
+	return page;
+}
+
+#endif
+
 /*
  * get_page_from_freelist goes through the zonelist trying to allocate
  * a page.
@@ -1726,6 +1988,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
 		struct zone *preferred_zone, int migratetype)
 {
+#ifdef CONFIG_VIPZONE_BACK_END
+	printk(KERN_DEBUG "<vipzone> get_page_from_freelist(): Deferring to get_page_from_freelist_vipzone()...\n");
+	return get_page_from_freelist_vipzone(gfp_mask, nodemask, order, (_VIP_TYP_READ | _VIP_UTIL_LO), zonelist, high_zoneidx, alloc_flags, preferred_zone, migratetype, NULL);
+#else
 	struct zoneref *z;
 	struct page *page = NULL;
 	int classzone_idx;
@@ -1813,123 +2079,9 @@ this_zone_full:
 		goto zonelist_scan;
 	}
 	return page;
-}
-
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
-/*
- * get_page_from_freelist goes through the zonelist trying to allocate
- * a page.
- */
-static struct page *
-get_page_from_freelist_vipzone(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
-		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
-		struct zone *preferred_zone, int migratetype, struct zone **finalZone)
-{
-	struct zoneref *z;
-	struct page *page = NULL;
-	int classzone_idx;
-	struct zone *zone;
-	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
-	int zlc_active = 0;		/* set if using zonelist_cache */
-	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-
-	int priority_index; //vipzone
-
-	classzone_idx = zone_idx(preferred_zone);
-
-zonelist_scan:
-	/*
-	 * Scan zonelist, looking for a zone with enough free.
-	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-	 */
-	
-	//vipzone -- THIS NEEDS TO BE UPDATED
-	for (priority_index = 0; priority_index < nr_dimms; priority_index++) {
-		z = dimm_write_zoneref_list[priority_index];
-		if (z->zone_idx > high_zoneidx) //This should only happen for DMA or DMA32 requests, if supported
-			continue; //Move to the next lowest-power DIMM
-		zone = z->zone;	
-
-		if (NUMA_BUILD && zlc_active &&
-			!zlc_zone_worth_trying(zonelist, z, allowednodes))
-				continue;
-		if ((alloc_flags & ALLOC_CPUSET) &&
-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-				continue;
-
-		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
-		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-			unsigned long mark;
-			int ret;
-
-			mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
-			if (zone_watermark_ok(zone, order, mark,
-				    classzone_idx, alloc_flags))
-				goto try_this_zone;
-
-			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
-				/*
-				 * we do zlc_setup if there are multiple nodes
-				 * and before considering the first zone allowed
-				 * by the cpuset.
-				 */
-				allowednodes = zlc_setup(zonelist, alloc_flags);
-				zlc_active = 1;
-				did_zlc_setup = 1;
-			}
-
-			if (zone_reclaim_mode == 0)
-				goto this_zone_full;
-
-			/*
-			 * As we may have just activated ZLC, check if the first
-			 * eligible zone has failed zone_reclaim recently.
-			 */
-			if (NUMA_BUILD && zlc_active &&
-				!zlc_zone_worth_trying(zonelist, z, allowednodes))
-				continue;
-
-			ret = zone_reclaim(zone, gfp_mask, order);
-			switch (ret) {
-			case ZONE_RECLAIM_NOSCAN:
-				/* did not scan */
-				continue;
-			case ZONE_RECLAIM_FULL:
-				/* scanned but unreclaimable */
-				continue;
-			default:
-				/* did we reclaim enough */
-				if (!zone_watermark_ok(zone, order, mark,
-						classzone_idx, alloc_flags))
-					goto this_zone_full;
-			}
-		}
-
-try_this_zone:
-		page = buffered_rmqueue(preferred_zone, zone, order,
-						gfp_mask, migratetype);
-		if (page)
-			break;
-this_zone_full:
-		if (NUMA_BUILD)
-			zlc_mark_zone_full(zonelist, z);
-	}
-
-	if (unlikely(NUMA_BUILD && page == NULL && zlc_active)) {
-		/* Disable zlc cache for second zonelist scan */
-		zlc_active = 0;
-		goto zonelist_scan;
-	}
-	
-	if (finalZone) //vipzone: check for NULL
-		*finalZone = zone;
-	else
-		*finalZone = NULL;
-	
-	return page;
-}
-
 #endif
+}
+
 
 /*
  * Large machines with many possible nodes should not always dump per-node
@@ -2273,12 +2425,230 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
 	return alloc_flags;
 }
 
+#ifdef CONFIG_VIPZONE_BACK_END //vipzone
+
+static inline struct page *
+__alloc_pages_slowpath_vipzone(gfp_t gfp_mask, unsigned int order, unsigned int vip_flags,
+	struct zonelist *zonelist, enum zone_type high_zoneidx,
+	nodemask_t *nodemask, struct zone *preferred_zone,
+	int migratetype, struct zone **finalZone)
+{
+	const gfp_t wait = gfp_mask & __GFP_WAIT;
+	struct page *page = NULL;
+	int alloc_flags;
+	unsigned long pages_reclaimed = 0;
+	unsigned long did_some_progress;
+	bool sync_migration = false;
+	
+	int zone_index = 0; //vipzone
+	struct zoneref *preferred_zoneref = NULL; //vipzone
+
+
+	/*
+	 * In the slowpath, we sanity check order to avoid ever trying to
+	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
+	 * be using allocators in order of preference for an area that is
+	 * too large.
+	 */
+	if (order >= MAX_ORDER) {
+		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+		return NULL;
+	}
+
+	/*
+	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
+	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
+	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
+	 * using a larger set of nodes after it has established that the
+	 * allowed per node queues are empty and that nodes are
+	 * over allocated.
+	 */
+	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+		goto nopage;
+
+restart:
+	if (!(gfp_mask & __GFP_NO_KSWAPD))
+		wake_all_kswapd(order, zonelist, high_zoneidx,
+						zone_idx(preferred_zone));
+
+	/*
+	 * OK, we're below the kswapd watermark and have kicked background
+	 * reclaim. Now things get more complex, so set up alloc_flags according
+	 * to how we want to proceed.
+	 */
+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+
+	/*
+	 * Find the true preferred zone if the allocation is unconstrained by
+	 * cpusets.
+	 */
+	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
+
+	preferred_zone = NULL; //Use as a flag.
+#ifdef CONFIG_ZONE_DMA32
+	if ((gfp_mask & __GFP_DMA32)) {
+		preferred_zoneref = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, zone_index);
+		if (preferred_zoneref)
+			preferred_zone = preferred_zoneref->zone;
+	}
+#endif
+#ifdef CONFIG_ZONE_DMA
+	if ((gfp_mask & __GFP_DMA) && likely(!z)) {
+		preferred_zoneref = vipzone_choose(vip_flags, NEED_DMA, high_zoneidx, zone_index);
+		if (preferred_zoneref)
+			preferred_zone = preferred_zoneref->zone;
+	}
+#endif
+
+	if (likely(!preferred_zone)) {
+		preferred_zoneref = vipzone_choose(vip_flags, NO_NEED_DMA_DMA32, high_zoneidx, zone_index);
+		if (preferred_zoneref)
+			preferred_zone = preferred_zoneref->zone;
+	}
+
+	//sanity check
+	if (unlikely(!preferred_zone)) {
+		printk(KERN_WARNING "<vipzone> __alloc_pages_slowpath_vipzone(): Could not find a preferred zone!\n");
+		return NULL;
+	}
+
+rebalance:
+	/* This is the last chance, in general, before the goto nopage. */
+	page = get_page_from_freelist_vipzone(gfp_mask, nodemask, order, vip_flags, zonelist,
+			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+			preferred_zone, migratetype, finalZone);
+	if (page)
+		goto got_pg;
+
+	/* Allocate without watermarks if the context allows */
+	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+		page = __alloc_pages_high_priority(gfp_mask, order, //vipzone: probably need to use a vipzone version of this function
+				zonelist, high_zoneidx, nodemask,
+				preferred_zone, migratetype);
+		if (page)
+			goto got_pg;
+	}
+
+	/* Atomic allocations - we can't balance anything */
+	if (!wait)
+		goto nopage;
+
+	/* Avoid recursion of direct reclaim */
+	if (current->flags & PF_MEMALLOC)
+		goto nopage;
+
+	/* Avoid allocations with no watermarks from looping endlessly */
+	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+		goto nopage;
+
+	/*
+	 * Try direct compaction. The first pass is asynchronous. Subsequent
+	 * attempts after direct reclaim are synchronous
+	 */
+	page = __alloc_pages_direct_compact(gfp_mask, order, //vipzone: probably need to use a vipzone version of this function
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress,
+					sync_migration);
+	if (page)
+		goto got_pg;
+	sync_migration = true;
+
+	/* Try direct reclaim and then allocating */
+	page = __alloc_pages_direct_reclaim(gfp_mask, order, //vipzone: probably need to use a vipzone version of this function
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress);
+	if (page)
+		goto got_pg;
+
+	/*
+	 * If we failed to make any progress reclaiming, then we are
+	 * running out of options and have to consider going OOM
+	 */
+	if (!did_some_progress) {
+		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+			if (oom_killer_disabled)
+				goto nopage;
+			page = __alloc_pages_may_oom(gfp_mask, order, //vipzone: probably need to use a vipzone version of this function
+					zonelist, high_zoneidx,
+					nodemask, preferred_zone,
+					migratetype);
+			if (page)
+				goto got_pg;
+
+			if (!(gfp_mask & __GFP_NOFAIL)) {
+				/*
+				 * The oom killer is not called for high-order
+				 * allocations that may fail, so if no progress
+				 * is being made, there are no other options and
+				 * retrying is unlikely to help.
+				 */
+				if (order > PAGE_ALLOC_COSTLY_ORDER)
+					goto nopage;
+				/*
+				 * The oom killer is not called for lowmem
+				 * allocations to prevent needlessly killing
+				 * innocent tasks.
+				 */
+
+				//vipzone
+				if (high_zoneidx < ZONE1)
+					goto nopage;
+			}
+
+			zone_index++;
+			goto restart;
+		}
+	}
+
+	/* Check if we should retry the allocation */
+	pages_reclaimed += did_some_progress;
+	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
+		/* Wait for some write requests to complete then retry */
+		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+		goto rebalance;
+	} else {
+		/*
+		 * High-order allocations do not necessarily loop after
+		 * direct reclaim and reclaim/compaction depends on compaction
+		 * being called after reclaim so call directly if necessary
+		 */
+		page = __alloc_pages_direct_compact(gfp_mask, order, //vipzone: probably need a vipzone version of this function
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress,
+					sync_migration);
+		if (page)
+			goto got_pg;
+	}
+
+nopage:
+	warn_alloc_failed(gfp_mask, order, NULL);
+	if (finalZone) //vipzone
+		*finalZone = NULL; return page; got_pg:
+	if (kmemcheck_enabled)
+		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
+	if (finalZone) //vipzone
+		*finalZone = page_zone(page);
+	return page;
+
+}
+#endif
+
 static inline struct page *
 __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
 	nodemask_t *nodemask, struct zone *preferred_zone,
 	int migratetype)
 {
+#ifdef CONFIG_VIPZONE_BACK_END
+	printk(KERN_DEBUG "<vipzone> __alloc_pages_slowpath(): Deferring to __alloc_pages_slowpath_vipzone(), default vip_flags of READ/LO...\n");
+	return __alloc_pages_slowpath_vipzone(gfp_mask, order, (_VIP_TYP_READ | _VIP_UTIL_LO), zonelist, high_zoneidx, nodemask, preferred_zone, migratetype, NULL);
+#else
 	const gfp_t wait = gfp_mask & __GFP_WAIT;
 	struct page *page = NULL;
 	int alloc_flags;
@@ -2409,11 +2779,7 @@ rebalance:
 				 * allocations to prevent needlessly killing
 				 * innocent tasks.
 				 */
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
-				if (high_zoneidx < ZONE1)
-#else
 				if (high_zoneidx < PG)
-#endif
 					goto nopage;
 			}
 
@@ -2450,278 +2816,10 @@ got_pg:
 	if (kmemcheck_enabled)
 		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
 	return page;
-
-}
-
-#ifdef CONFIG_VIPZONE_BACK_END //vipzone
-
-static inline struct page *
-__alloc_pages_slowpath_vipzone(gfp_t gfp_mask, unsigned int order,
-	struct zonelist *zonelist, enum zone_type high_zoneidx,
-	nodemask_t *nodemask, struct zone *preferred_zone,
-	int migratetype, struct zone **finalZone)
-{
-	const gfp_t wait = gfp_mask & __GFP_WAIT;
-	struct page *page = NULL;
-	int alloc_flags;
-	unsigned long pages_reclaimed = 0;
-	unsigned long did_some_progress;
-	bool sync_migration = false;
-	int i = 0;
-	/*
-	 * In the slowpath, we sanity check order to avoid ever trying to
-	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
-	 * be using allocators in order of preference for an area that is
-	 * too large.
-	 */
-	if (order >= MAX_ORDER) {
-		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-		return NULL;
-	}
-
-	/*
-	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
-	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
-	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
-	 * using a larger set of nodes after it has established that the
-	 * allowed per node queues are empty and that nodes are
-	 * over allocated.
-	 */
-	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
-		goto nopage;
-
-restart:
-	if (!(gfp_mask & __GFP_NO_KSWAPD))
-		wake_all_kswapd(order, zonelist, high_zoneidx,
-						zone_idx(preferred_zone));
-
-	/*
-	 * OK, we're below the kswapd watermark and have kicked background
-	 * reclaim. Now things get more complex, so set up alloc_flags according
-	 * to how we want to proceed.
-	 */
-	alloc_flags = gfp_to_alloc_flags(gfp_mask);
-
-	/*
-	 * Find the true preferred zone if the allocation is unconstrained by
-	 * cpusets.
-	 */
-	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
-
-	//vipzone
-	preferred_zone = NULL; //Use as a flag.
-
-	#ifdef CONFIG_ZONE_DMA
-	if (high_zoneidx == ZONE_DMA) //If we want DMA, prefer DMA zone.
-		preferred_zone = zonelist->_zonerefs[ZONE_DMA].zone;
-	#endif
-
-	#ifdef CONFIG_ZONE_DMA32
-	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) { //If allocation wants DMA32 compatible...
-		for (i = 0; i < nr_dimms; i++) //Find lowest-power DMA32-compatible zone
-			if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) {
-				preferred_zone = dimm_write_zoneref_list[i]->zone;
-				break;
-			}
-		}
-	
-	if (unlikely(i == nr_dimms)) //No DMA32 match, this is a bug
-		printk(KERN_WARNING "<vipzone> alloc_pages_slowpath_vipzone(): DMA32 request did not find a suitable DIMM zone!\n");
-	#endif 
-
-	if (!preferred_zone)
-		preferred_zone = dimm_write_zoneref_list[0]->zone; //Get the highest priority DIMM
-
-rebalance:
-	/* This is the last chance, in general, before the goto nopage. */
-	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
-			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
-			preferred_zone, migratetype);
-	if (page)
-		goto got_pg;
-
-	/* Allocate without watermarks if the context allows */
-	if (alloc_flags & ALLOC_NO_WATERMARKS) {
-		page = __alloc_pages_high_priority(gfp_mask, order,
-				zonelist, high_zoneidx, nodemask,
-				preferred_zone, migratetype);
-		if (page)
-			goto got_pg;
-	}
-
-	/* Atomic allocations - we can't balance anything */
-	if (!wait)
-		goto nopage;
-
-	/* Avoid recursion of direct reclaim */
-	if (current->flags & PF_MEMALLOC)
-		goto nopage;
-
-	/* Avoid allocations with no watermarks from looping endlessly */
-	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
-		goto nopage;
-
-	/*
-	 * Try direct compaction. The first pass is asynchronous. Subsequent
-	 * attempts after direct reclaim are synchronous
-	 */
-	page = __alloc_pages_direct_compact(gfp_mask, order,
-					zonelist, high_zoneidx,
-					nodemask,
-					alloc_flags, preferred_zone,
-					migratetype, &did_some_progress,
-					sync_migration);
-	if (page)
-		goto got_pg;
-	sync_migration = true;
-
-	/* Try direct reclaim and then allocating */
-	page = __alloc_pages_direct_reclaim(gfp_mask, order,
-					zonelist, high_zoneidx,
-					nodemask,
-					alloc_flags, preferred_zone,
-					migratetype, &did_some_progress);
-	if (page)
-		goto got_pg;
-
-	/*
-	 * If we failed to make any progress reclaiming, then we are
-	 * running out of options and have to consider going OOM
-	 */
-	if (!did_some_progress) {
-		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
-			if (oom_killer_disabled)
-				goto nopage;
-			page = __alloc_pages_may_oom(gfp_mask, order,
-					zonelist, high_zoneidx,
-					nodemask, preferred_zone,
-					migratetype);
-			if (page)
-				goto got_pg;
-
-			if (!(gfp_mask & __GFP_NOFAIL)) {
-				/*
-				 * The oom killer is not called for high-order
-				 * allocations that may fail, so if no progress
-				 * is being made, there are no other options and
-				 * retrying is unlikely to help.
-				 */
-				if (order > PAGE_ALLOC_COSTLY_ORDER)
-					goto nopage;
-				/*
-				 * The oom killer is not called for lowmem
-				 * allocations to prevent needlessly killing
-				 * innocent tasks.
-				 */
-
-				//vipzone
-				if (high_zoneidx < ZONE1)
-					goto nopage;
-			}
-
-			goto restart;
-		}
-	}
-
-	/* Check if we should retry the allocation */
-	pages_reclaimed += did_some_progress;
-	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
-		/* Wait for some write requests to complete then retry */
-		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
-		goto rebalance;
-	} else {
-		/*
-		 * High-order allocations do not necessarily loop after
-		 * direct reclaim and reclaim/compaction depends on compaction
-		 * being called after reclaim so call directly if necessary
-		 */
-		page = __alloc_pages_direct_compact(gfp_mask, order,
-					zonelist, high_zoneidx,
-					nodemask,
-					alloc_flags, preferred_zone,
-					migratetype, &did_some_progress,
-					sync_migration);
-		if (page)
-			goto got_pg;
-	}
-
-nopage:
-	warn_alloc_failed(gfp_mask, order, NULL);
-	if (finalZone) //vipzone
-		*finalZone = NULL; return page; got_pg:
-	if (kmemcheck_enabled)
-		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
-	if (finalZone) //vipzone
-		*finalZone = page_zone(page);
-	return page;
-
-}
 #endif
-
-//vipzone
-#ifdef CONFIG_VIPZONE_BACK_END
-struct zone * vipzone_choose(unsigned long vip_flags, bool need_dma32, enum zone_type high_zoneidx) {
-	int i = 0;
-	struct zone *emptiest_zone = NULL; //for case VIPZONE_LOW, this will be set to the zone with the most free space
-	unsigned long most_free_space = 0; //in pages. Corresponds to the emptiest zone.
-	
-	if (need_dma32) //Constrain DMA32 if necessary
-		high_zoneidx = max_dimm_zone_for_dma32;
-	
-	/*
-	 * Switch against vipzone util: hi or lo util?
-	 */
-	switch (vip_flags & _VIP_UTIL_MASK) { 
-		case _VIP_UTIL_HI:
-			/*
-			 * Switch against vipzone typ: read or write?
-			 */
-			switch (vip_flags & _VIP_TYP_MASK) { 
-				case _VIP_TYP_WRITE: //get low power write zone
-					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
-							if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
-								return dimm_write_zoneref_list[i]->zone;
-					break;
-
-				default: 
-				case _VIP_TYP_READ: //get low power read zone
-					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
-							if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
-								return dimm_read_zoneref_list[i]->zone;
-					break;
-			}
-			break;
-
-
-		default:
-		case _VIP_UTIL_LO:
-			/*
-			 * Switch against vipzone typ: read or write?
-			 */
-			switch (vip_flags & _VIP_TYP_MASK) {
-				case _VIP_TYP_WRITE: //get zone with most free space, by traversing write list
-					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
-						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
-							most_free_space = zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES);
-							emptiest_zone = dimm_write_zoneref_list[i]->zone;
-						}
-					break;
-
-				default:
-				case _VIP_TYP_READ: //get zone with most free space, by traversing read list
-					for (i = ZONE1; i < nr_dimms + ZONE1; i++)
-						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES) > most_free_space) {
-							most_free_space = zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES);
-							emptiest_zone = dimm_read_zoneref_list[i]->zone;
-						}
-					break;
-			}
-			return emptiest_zone;
-	}
-	
-	return NULL; //OUT OF LUCK!
 }
-#endif
+
+
 
 
 			
@@ -2755,14 +2853,11 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	//Extract vip_flags from the vma if given
 	if (vma) {
 		vip_flags = vma->vip_flags;
-		if (iter % 50000 == 0)
-			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): vma WORKED!!!!\n");
+		if (vma->vip_touched == 1)
+			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): we were able to get the vip_flags from vip_mmap! vip_flags == %lu\n", vip_flags);
 	}
-	else {
+	else
 		vip_flags = _VIP_TYP_READ | _VIP_UTIL_LO; //default flag values
-		if (iter % 50000 == 0)
-			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): vma was NULL, picked default READ/LO vip_flags. This is probably because we have a non-vipzone path to here.\n");
-	}
 
 	/*
 	 * Check the zones suitable for the gfp_mask contain at least one
@@ -2777,37 +2872,48 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	preferred_zone = NULL; //Use as a flag.
 
 	#ifdef CONFIG_ZONE_DMA
-	if (high_zoneidx == ZONE_DMA) //If we want DMA, prefer DMA zone.
-		preferred_zone = zonelist->_zonerefs[ZONE_DMA].zone;
-	#endif
+	if (high_zoneidx == ZONE_DMA && (gfp_mask & __GFP_DMA)) { //If we need DMA...
+		//preferred_zone = zonelist->_zonerefs[ZONE_DMA].zone;
+		preferred_zone = (vipzone_choose(vip_flags, NEED_DMA, high_zoneidx, 0))->zone;
 
-	#ifdef CONFIG_ZONE_DMA32
-	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32)) //If allocation wants DMA32 compatible...
-		preferred_zone = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx);
-	
-	if (unlikely(preferred_zone == NULL)) { //No DMA32 match, this is a bug
-		if (iter % 50000 == 0)
-			printk(KERN_WARNING "<vipzone> DMA32 request did not find a suitable DIMM zone! This is a bug!\n");
+		if (unlikely(!preferred_zone)) {
+			printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask_vipzone(): DMA request did not find a preferred DIMM zone!\n");
+			put_mems_allowed();
+			return NULL;
+		}
 	}
 	#endif
 
-	//Pick our preferred vipzone given vip_flags
+	#ifdef CONFIG_ZONE_DMA32
+	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32) && likely(preferred_zone == NULL)) { //If we need DMA32...
+		preferred_zone = (vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, 0))->zone;
+		
+		if (unlikely(!preferred_zone)) { //No DMA32 match, this is a bug
+			printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask_vipzone(): DMA32 request did not find a preferred DIMM zone!\n");
+			put_mems_allowed();
+			return NULL;
+		}
+	}
+	#endif
+
+	//Here, we usually don't have DMA/DMA32 allocations. This is the standard allocator, now.
 	if (likely(!preferred_zone))
-		preferred_zone = vipzone_choose(vip_flags, NO_NEED_DMA32, high_zoneidx);
-	
+		preferred_zone = (vipzone_choose(vip_flags, NO_NEED_DMA_DMA32, high_zoneidx, 0))->zone;
+
+	//If we don't have a preferred zone at this point, that's definitely a problem.
 	if (unlikely(!preferred_zone)) {
+		printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask_vipzone(): vipzone_choose() was unable to locate a preferred zone!\n");
 		put_mems_allowed();
 		return NULL;
 	}
 
 	/* First allocation attempt */
-	
-	page = get_page_from_freelist_vipzone(gfp_mask|__GFP_HARDWALL, nodemask, order, //vipzone: Try the preferred zone first, then fall back to other zones.
+	page = get_page_from_freelist_vipzone(gfp_mask|__GFP_HARDWALL, nodemask, order, vip_flags, //vipzone: Try the preferred zone first, then fall back to other zones.
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype, &finalZone);
 	
-	if (unlikely(!page))
-		page = __alloc_pages_slowpath_vipzone(gfp_mask, order, //vipzone
+	if (unlikely(!page)) //fastpath failed, this is unlikely
+		page = __alloc_pages_slowpath_vipzone(gfp_mask, order, vip_flags, //vipzone: slowpath
 				zonelist, high_zoneidx, nodemask,
 				preferred_zone, migratetype, &finalZone);
 	put_mems_allowed();
@@ -2816,6 +2922,8 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	
 	if (iter % 50000 == 0 && preferred_zone && finalZone) {
 		printk(KERN_DEBUG "<vipzone> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
+		if (gfp_mask & __GFP_DMA)
+			printk(KERN_DEBUG "<vipzone> ----- This last page was a DMA request.\n");
 		if (gfp_mask & __GFP_DMA32)
 			printk(KERN_DEBUG "<vipzone> ----- This last page was a DMA32 request.\n");
 	}

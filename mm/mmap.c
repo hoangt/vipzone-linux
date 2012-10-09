@@ -725,7 +725,10 @@ int have_equal_vip_flags(struct vm_area_struct *prev, struct vm_area_struct *nex
 	if (prev && next && prev->vip_flags == next->vip_flags)
 		return 1;
 	else {
-		printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): false! This should block vma_merge()\n");
+		if (prev && next)
+			printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): false! prev->vip_flags == %lu, next->vip_flags == %lu, prev->vip_touched == %lu, next->vip_touched == %lu\n", prev->vip_flags, next->vip_flags, prev->vip_touched, next->vip_touched);
+		else
+			printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): either prev or next vm_area_struct was NULL! This probably shouldn't happen\n");
 		return 0;
 	}
 }
@@ -1715,13 +1718,14 @@ munmap_back:
 		goto unacct_error;
 	}
 
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [5]\n");
+	printk(KERN_WARNING "<vipzone> vip_mmap_region [5]: Setting up a new vma object\n");
 
 	vma->vm_mm = mm;
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
 	vma->vip_flags = flags & _VIP_MASK; //vipzone: set the vip_flags in the vma
+	vma->vip_touched = 1; //debug flag
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);

@@ -2,8 +2,9 @@
 
 #ifdef CONFIG_VIPZONE_FRONT_END
 
-#define NEED_DMA32 1
-#define NO_NEED_DMA32 0
+#define NO_NEED_DMA_DMA32 0
+#define NEED_DMA 1
+#define NEED_DMA32 2
 
 #ifndef _VIPZONE_FLAGS
 #define _VIPZONE_FLAGS
