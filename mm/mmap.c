@@ -1314,7 +1314,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
 	struct user_struct *user = NULL;
 
-	printk(KERN_INFO "<vipzone> vip_mmap syscall: Hello from the kernel, flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
+	printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
 	if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_READ)
 		printk(KERN_INFO "... vip_flags shows READ mode\n");
 	else if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_WRITE)
