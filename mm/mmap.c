@@ -724,13 +724,8 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
 int have_equal_vip_flags(struct vm_area_struct *prev, struct vm_area_struct *next) {
 	if (prev && next && prev->vip_flags == next->vip_flags)
 		return 1;
-	else {
-		if (prev && next)
-			printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): false! prev->vip_flags == %lu, next->vip_flags == %lu, prev->vip_touched == %lu, next->vip_touched == %lu\n", prev->vip_flags, next->vip_flags, prev->vip_touched, next->vip_touched);
-		else
-			printk(KERN_DEBUG "<vipzone> have_equal_vip_flags(): either prev or next vm_area_struct was NULL! This probably shouldn't happen\n");
+	else //Either prev or next are NULL, or the flags simply don't match (different power regions)
 		return 0;
-	}
 }
 #endif
 
@@ -803,10 +798,6 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 		 * OK, it can.  Can we now merge in the successor as well?
 		 */
 
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT END
-		 printk(KERN_DEBUG "<vipzone> vma_merge(): We can merge with predecessor\n");
-#endif
 		if (next && end == next->vm_start &&
 				mpol_equal(policy, vma_policy(next)) &&
 //vipzone
@@ -817,18 +808,10 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 					anon_vma, file, pgoff+pglen) &&
 				is_mergeable_anon_vma(prev->anon_vma,
 						      next->anon_vma, NULL)) {
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT END
-		 printk(KERN_DEBUG "<vipzone> vma_merge(): We can merge with successor\n");
-#endif
 							/* cases 1, 6 */
 			err = vma_adjust(prev, prev->vm_start,
 				next->vm_end, prev->vm_pgoff, NULL);
 		} else					/* cases 2, 5, 7 */
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT END
-		 printk(KERN_DEBUG "<vipzone> vma_merge(): We cannot merge with successor\n");
-#endif
 			err = vma_adjust(prev, prev->vm_start,
 				end, prev->vm_pgoff, NULL);
 		if (err)
@@ -848,10 +831,6 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 #endif
 			can_vma_merge_before(next, vm_flags,
 					anon_vma, file, pgoff+pglen)) {
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT END
-		 printk(KERN_DEBUG "<vipzone> vma_merge(): We can merge in front of next\n");
-#endif
 		if (prev && addr < prev->vm_end)	/* case 4 */
 			err = vma_adjust(prev, prev->vm_start,
 				addr, prev->vm_pgoff, NULL);
@@ -1142,8 +1121,6 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	/* from upper level call */
 	//flags = rflags & ~(MAP_EXECUTABLE | MAP_DENYWRITE); //Danny
 	
-	printk(KERN_WARNING "<vipzone> do_vip_mmap_pgoff [1]: address: %lu to %lu, total vm = %lu\n", addr, addr + len, mm->total_vm);
-
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC?
 	 *
@@ -1271,10 +1248,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 
 	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
 	if (error)
-	{
-		printk(KERN_WARNING "<vipzone> do_vip_mmap_pgoff [2]: Error at security_file_mmap(), ERROR = %u\n", error);
 		return error;
-	}
 
 	//Danny...
 	//page_cnt = len/PAGE_SIZE;
@@ -1340,22 +1314,20 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
 	struct user_struct *user = NULL;
 
-	printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [0]: Made it this far!\n");
-	
-	printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [1]: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
+	printk(KERN_INFO "<vipzone> vip_mmap syscall: Hello from the kernel, flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
 	if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_READ)
-		printk(KERN_WARNING "... vip_flags shows READ mode\n");
+		printk(KERN_INFO "... vip_flags shows READ mode\n");
 	else if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_WRITE)
-		printk(KERN_WARNING "... vip_flags shows WRITE mode\n");
+		printk(KERN_INFO "... vip_flags shows WRITE mode\n");
 	else
-		printk(KERN_WARNING "... vip_flags shows UNDEFINED type mode\n");
+		printk(KERN_INFO "... vip_flags shows UNDEFINED type mode\n");
 
 	if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_LO)
-		printk(KERN_WARNING "... vip_flags shows LO mode\n");
+		printk(KERN_INFO "... vip_flags shows LO mode\n");
 	else if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_HI)
-		printk(KERN_WARNING "... vip_flags shows HI mode\n");
+		printk(KERN_INFO "... vip_flags shows HI mode\n");
 	else
-		printk(KERN_WARNING "... vip_flags shows UNDEFINED util mode\n");
+		printk(KERN_INFO "... vip_flags shows UNDEFINED util mode\n");
 
 	
 	// we assume all mappings here are anonymous
@@ -1363,8 +1335,6 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	//   also, no map huge tlb support for now
 //#if 0
 	if (!(flags & MAP_ANONYMOUS)) {
-	  
-		printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [2]: Mapping request was not anonymous\n");
 		
 		audit_mmap_fd(fd, flags);
 		if (unlikely(flags & MAP_HUGETLB))
@@ -1373,8 +1343,6 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 		if (!file)
 			return -EBADF; //bad file
 	} else if (flags & MAP_HUGETLB) {
-	  
-		printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [3]: Mapping request was anonymous, and huge TLB support is requested\n");
 		
 		/*
 		 * VM_NORESERVE is used because the reservations will be
@@ -1393,7 +1361,6 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	// we need to do this mapping within do_vip_mmap_pgoff
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE); //Turn off executable and non-writeable flags if they were passed
 	
-	printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [4]: calling do_vip_mmap_pgoff()\n");
 	down_write(&current->mm->mmap_sem); //Lock the semaphore for writing
 	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, pgoff); //do the real mmap work
 	up_write(&current->mm->mmap_sem); //Unlock the semaphore
@@ -1401,8 +1368,6 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	if (file) //file cleanup
 		fput(file);
 	
-	printk(KERN_WARNING "<vipzone> sys_vip_mmap_pgoff [5]: Returning...\n");
-
 	return retval;
 }
 #endif
@@ -1655,8 +1620,6 @@ unsigned long vip_mmap_region(struct file *file, unsigned long addr,
 	error = -ENOMEM;
 munmap_back:
 
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [1]\n");
-
 	vma = find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
 	if (vma && vma->vm_start < addr + len) {
 		if (do_munmap(mm, addr, len))
@@ -1664,8 +1627,6 @@ munmap_back:
 		goto munmap_back;
 	}
 	
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [2]\n");
-
 	/* Check against address space limit. */
 	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
 		return -ENOMEM;
@@ -1684,8 +1645,6 @@ munmap_back:
 			vm_flags |= VM_NORESERVE;
 	}
 	
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [3]\n");
-
 	/*
 	 * Private writable mapping: check memory availability
 	 */
@@ -1696,16 +1655,12 @@ munmap_back:
 		vm_flags |= VM_ACCOUNT;
 	}
 
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [4]\n");
-
 	/*
 	 * Can we just expand an old mapping?
 	 */
 	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
-	if (vma) {
-		printk(KERN_DEBUG "<vipzone> vip_mmap_region: vma_merge() was successful\n");
+	if (vma) 
 		goto out;
-	}
 
 	/*
 	 * Determine the object being mapped and call the appropriate
@@ -1718,20 +1673,18 @@ munmap_back:
 		goto unacct_error;
 	}
 
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [5]: Setting up a new vma object\n");
+	printk(KERN_INFO "<vipzone> vip_mmap_region(): Setting up a new vma object, putting our vip_flags in\n");
 
 	vma->vm_mm = mm;
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
 	vma->vip_flags = flags & _VIP_MASK; //vipzone: set the vip_flags in the vma
-	vma->vip_touched = 1; //debug flag
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
 
 	if (file) {
-		printk(KERN_WARNING "<vipzone> vip_mmap_region [6], have file\n");
 		error = -EINVAL;
 		if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
 			goto free_vma;
@@ -1758,14 +1711,12 @@ munmap_back:
 		pgoff = vma->vm_pgoff;
 		vm_flags = vma->vm_flags;
 	} else if (vm_flags & VM_SHARED) {
-		printk(KERN_WARNING "<vipzone> vip_mmap_region [7], no file but VM_SHARED\n");
 		error = shmem_zero_setup(vma);
 		if (error)
 			goto free_vma;
 	}
 
 	if (vma_wants_writenotify(vma)) {
-		printk(KERN_WARNING "<vipzone> vip_mmap_region [8], vma_wants_writenotify(vma) said yes\n");
 		pgprot_t pprot = vma->vm_page_prot;
 
 		/* Can vma->vm_page_prot have changed??
@@ -1780,7 +1731,6 @@ munmap_back:
 			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	}
 
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [9], vma linking\n");
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 	file = vma->vm_file;
 
@@ -1788,7 +1738,6 @@ munmap_back:
 	if (correct_wcount)
 		atomic_inc(&inode->i_writecount);
 out:
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [10], out label\n");
 	perf_event_mmap(vma);
 
 	mm->total_vm += len >> PAGE_SHIFT;
@@ -1796,12 +1745,11 @@ out:
 	if (vm_flags & VM_LOCKED) {
 		if (!mlock_vma_pages_range(vma, addr, addr + len))
 			mm->locked_vm += (len >> PAGE_SHIFT);
-	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK)) //vipzone: MAP_POPULATE forces virtual pages to actually be backed -- sortof. Does it by make_pages_present()
+	} else if ((flags & MAP_POPULATE) && !(flags & MAP_NONBLOCK)) //vipzone: MAP_POPULATE forces virtual pages to actually be backed -- sortof. Does it by make_pages_present(). May need to look at this later
 		make_pages_present(addr, addr + len);
 	return addr;
 
 unmap_and_free_vma:
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [11], unmap_and_free_vma label\n");
 	if (correct_wcount)
 		atomic_inc(&inode->i_writecount);
 	vma->vm_file = NULL;
@@ -1811,10 +1759,8 @@ unmap_and_free_vma:
 	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
 	charged = 0;
 free_vma:
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [12], free_vma\n");
 	kmem_cache_free(vm_area_cachep, vma);
 unacct_error:
-	printk(KERN_WARNING "<vipzone> vip_mmap_region [13], unacct_error\n");
 	if (charged)
 		vm_unacct_memory(charged);
 	return error;

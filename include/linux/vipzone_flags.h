@@ -9,6 +9,8 @@
 #ifndef _VIPZONE_FLAGS
 #define _VIPZONE_FLAGS
 
+#define VIP_FREE_THRESHOLD 2 //This threshold means zone should have at least 20% free space -- we use integer multiplication to avoid floating point operations
+
 #define _VIP_TYP_READ			0x0000 // x0xx xxxx
 #define _VIP_TYP_WRITE			0x0040 // x1xx xxxx
 #define _VIP_TYP_MASK			0x0040 // 0100 0000

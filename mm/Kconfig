@@ -1,5 +1,5 @@
 config VIPZONE_BACK_END
-	bool "ViPZonE: OS-Level Memory Variability-Driven Physical Address Zoning for Energy Savings"
+	bool "ViPZonE: Variability-Aware Memory Management"
 	depends on !HIGHMEM && EXPERIMENTAL
 	help
 	  This enables an experimental physical page allocation scheme
@@ -15,8 +15,6 @@ config VIPZONE_BACK_END
 	  If in doubt, select N.
 	  
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
-	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
-	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
 config MAX_NR_VIPZONES
 	int "Max number of 'Vipzones' to support."
@@ -26,8 +24,6 @@ config MAX_NR_VIPZONES
 	  Specify the maximum number of Vipzones (physical memory regions) to support in the kernel, regardless of whether we actually use that many.
 
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
-	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
-	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
 config DEF_NR_VIPZONES
 	int "Default number of Vipzones"
@@ -37,8 +33,6 @@ config DEF_NR_VIPZONES
   	  Specify the default number of Vipzones in the system. This can be overridden by using the "nr_vipzones=" command-line parameter.
 
   	  Author: Mark Gottscho <mgottscho@ucla.edu>
-	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
-	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
 
 config DEF_VIPZONE_SIZE_MBYTES
 	int "Default Vipzone size in MBytes"
@@ -48,8 +42,41 @@ config DEF_VIPZONE_SIZE_MBYTES
 	  Specify the default number of megabytes for each Vipzone in the system. This can be overridden by using the "vipzone_size_mbytes=" command-line parameter.
 	
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
-	  Please see our paper titled 'ViPZonE: OS-Level Memory Variability-Aware Driven
-	  Physical Address Zoning for Energy Savings' in CODES+ISSS 2012.
+
+choice VIPZONE_BACK_END_LOMODE
+	prompt "Algorithm for low-utilization ViPZonE page allocations"
+	depends on VIPZONE_BACK_END
+	default VIPZONE_BACK_END_LOMODE_THRESHOLD
+
+config VIPZONE_BACK_END_LOMODE_THRESHOLD
+	bool "Low power first, with >threshold free (Default)"
+	depends on VIPZONE_BACK_END
+	help
+	  Low-utilization (default all page allocations) prefer low power zones, but only if there is enough free space, over a threshold. If there is not
+	  enough free space, higher power zones are tried progressively. This allows high-utilization ViPZonE allocations to get precedence when low power
+	  memory space is running out. This is the default allocator mode.
+
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
+config VIPZONE_BACK_END_LOMODE_HIPOWER
+	bool "High power first"
+	depends on VIPZONE_BACK_END
+	help
+	  Low-utilization (default all page allocations) prefer high power zones, in order to leave low power space for allocations with higher ViPZonE utilization.
+	  Using this scheme, physical memory will naturally fill from the lowest and highest power zones toward the middle power zones (stack-like manner).
+
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
+config VIPZONE_BACK_END_LOMODE_FREESPACE
+	bool "Most free space first"
+	depends on VIPZONE_BACK_END
+	help
+	  Low-utilization (default all page allocations) prefer zones with the most free space. This is an effort to keep low utilization pages out of the way, especially
+	  with low power space.
+
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
+
+endchoice
 
 config VIPZONE_FRONT_END 
 	bool "Expose front end of ViPZonE: syscalls, VM upper-layers"
