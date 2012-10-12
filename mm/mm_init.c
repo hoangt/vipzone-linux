@@ -125,10 +125,10 @@ void __meminit mminit_verify_page_links(struct page *page, enum zone_type zone,
 			unsigned long nid, unsigned long pfn)
 {
 	if (page_to_nid(page) != nid)
-		early_printk("<vipzone> mminit_verify_page_links(): page_to_nid(page)=%lu, nid=%lu\n", page_to_nid(page), nid); //vipzone
+		early_printk("<vipzone> mminit_verify_page_links(): page_to_nid(page)=%d, nid=%lu\n", page_to_nid(page), nid); //vipzone
 	BUG_ON(page_to_nid(page) != nid);
 	if (page_zonenum(page) != zone)
-		early_printk("<vipzone> mminit_verify_page_links(): page_zonenum(page)=%lu, zone=%lu\n", page_zonenum(page), zone); //vipzone
+		early_printk("<vipzone> mminit_verify_page_links(): page_zonenum(page)=%u, zone=%u\n", page_zonenum(page), zone); //vipzone
 	BUG_ON(page_zonenum(page) != zone);
 	if (page_to_pfn(page) != pfn)
 		early_printk("<vipzone> mminit_verify_page_links(): page_to_pfn(page)=%lu, pfn=%lu\n", page_to_pfn(page), pfn); //vipzone

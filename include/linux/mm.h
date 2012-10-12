@@ -1419,7 +1419,7 @@ extern unsigned long vip_mmap_region(struct file *file, unsigned long addr,
 			  unsigned long len, unsigned long flags,
 			  vm_flags_t vm_flags, unsigned long pgoff);
 
-extern int have_equal_vip_flags(struct vm_area_struct *prev, struct vm_area_struct *next); //vipzone: check for same vip_flags before merging two vmas
+extern int have_equal_vip_flags(struct vm_area_struct *vma, unsigned long vip_flags); //vipzone: check for same vip_flags before merging two vmas
 #endif
 
 extern unsigned long mmap_region(struct file *file, unsigned long addr,

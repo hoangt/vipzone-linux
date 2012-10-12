@@ -372,6 +372,11 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 					for (i = startingRank+ZONE1; i < nr_dimms+ZONE1; i++)
 						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_write_zoneref_list[i]->zone, NR_FREE_PAGES)*10 > VIP_FREE_THRESHOLD * dimm_write_zoneref_list[i]->zone->spanned_pages)
 							return dimm_write_zoneref_list[i];
+
+					//FALLBACK: If we haven't returned yet, it means all zones are low on space. Get high write power zone.
+					for (i = nr_dimms-1-startingRank; i >= ZONE1; i--)
+						if (dimm_write_zoneref_list[i]->zone_idx <= high_zoneidx) 
+							return dimm_write_zoneref_list[i];
 #else
 	#ifdef CONFIG_VIPZONE_BACK_END_LOMODE_HIPOWER
 					//Get high write power zone
@@ -399,6 +404,11 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 					//Get low read power zone if free space is over our watermark
 					for (i = startingRank+ZONE1; i < nr_dimms+ZONE1; i++)
 						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx && zone_page_state(dimm_read_zoneref_list[i]->zone, NR_FREE_PAGES)*10 > VIP_FREE_THRESHOLD * dimm_read_zoneref_list[i]->zone->spanned_pages)
+							return dimm_read_zoneref_list[i];
+					
+					//FALLBACK: If we haven't returned yet, it means all zones are low on space. Get high read power zone.
+					for (i = nr_dimms-1-startingRank; i >= ZONE1; i--)
+						if (dimm_read_zoneref_list[i]->zone_idx <= high_zoneidx) 
 							return dimm_read_zoneref_list[i];
 #else
 	#ifdef CONFIG_VIPZONE_BACK_END_LOMODE_HIPOWER

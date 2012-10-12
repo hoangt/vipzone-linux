@@ -721,11 +721,93 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
 //vipzone
 #ifdef CONFIG_VIPZONE_FRONT_END
 /* Checks to make sure two adjacent vm_area_struct have the same vip_flags. This is useful for vma_merging as we don't want to merge two different power zones. */
-int have_equal_vip_flags(struct vm_area_struct *prev, struct vm_area_struct *next) {
-	if (prev && next && prev->vip_flags == next->vip_flags)
+int have_equal_vip_flags(struct vm_area_struct *vma, unsigned long vip_flags) {
+	if (vma && vma->vip_flags == vip_flags)
 		return 1;
-	else //Either prev or next are NULL, or the flags simply don't match (different power regions)
+	else 
 		return 0;
+}
+#endif
+
+//vipzone
+#ifdef CONFIG_VIPZONE_FRONT_END
+struct vm_area_struct *vma_merge_vipzone(struct mm_struct *mm,
+			struct vm_area_struct *prev, unsigned long addr,
+			unsigned long end, unsigned long vm_flags, unsigned long vip_flags, //vipzone
+		     	struct anon_vma *anon_vma, struct file *file,
+			pgoff_t pgoff, struct mempolicy *policy)
+{
+	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
+	struct vm_area_struct *area, *next;
+	int err;
+
+	/*
+	 * We later require that vma->vm_flags == vm_flags,
+	 * so this tests vma->vm_flags & VM_SPECIAL, too.
+	 */
+	if (vm_flags & VM_SPECIAL)
+		return NULL;
+
+	if (prev)
+		next = prev->vm_next;
+	else
+		next = mm->mmap;
+	area = next;
+	if (next && next->vm_end == end)		/* cases 6, 7, 8 */
+		next = next->vm_next;
+
+	/*
+	 * Can it merge with the predecessor?
+	 */
+	if (prev && prev->vm_end == addr &&
+  			mpol_equal(vma_policy(prev), policy) &&
+			have_equal_vip_flags(prev, vip_flags) && //vipzone: check to make sure we don't merge high and low power areas
+			can_vma_merge_after(prev, vm_flags,
+						anon_vma, file, pgoff)) {
+		/*
+		 * OK, it can.  Can we now merge in the successor as well?
+		 */
+
+		if (next && end == next->vm_start &&
+				mpol_equal(policy, vma_policy(next)) &&
+			have_equal_vip_flags(next, vip_flags) && //vipzone: check to make sure we don't merge high and low power areas
+				can_vma_merge_before(next, vm_flags,
+					anon_vma, file, pgoff+pglen) &&
+				is_mergeable_anon_vma(prev->anon_vma,
+						      next->anon_vma, NULL)) {
+							/* cases 1, 6 */
+			err = vma_adjust(prev, prev->vm_start,
+				next->vm_end, prev->vm_pgoff, NULL);
+		} else					/* cases 2, 5, 7 */
+			err = vma_adjust(prev, prev->vm_start,
+				end, prev->vm_pgoff, NULL);
+		if (err)
+			return NULL;
+		khugepaged_enter_vma_merge(prev);
+		return prev;
+	}
+
+	/*
+	 * Can this new request be merged in front of next?
+	 */
+	if (next && end == next->vm_start &&
+ 			mpol_equal(policy, vma_policy(next)) &&
+			have_equal_vip_flags(next, vip_flags) && //vipzone: check to make sure we don't merge high and low power areas
+			can_vma_merge_before(next, vm_flags,
+					anon_vma, file, pgoff+pglen)) {
+		if (prev && addr < prev->vm_end)	/* case 4 */
+			err = vma_adjust(prev, prev->vm_start,
+				addr, prev->vm_pgoff, NULL);
+		else					/* cases 3, 8 */
+			err = vma_adjust(area, addr, next->vm_end,
+				next->vm_pgoff - pglen, NULL);
+		if (err)
+			return NULL;
+		khugepaged_enter_vma_merge(area);
+		return area;
+	}
+
+	return NULL;
 }
 #endif
 
@@ -764,6 +846,10 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 		     	struct anon_vma *anon_vma, struct file *file,
 			pgoff_t pgoff, struct mempolicy *policy)
 {
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
+
+	return vma_merge_vipzone(mm, prev, addr, end, vm_flags, (_VIP_TYP_READ | _VIP_UTIL_LO), anon_vma, file, pgoff, policy);
+#else
 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
 	struct vm_area_struct *area, *next;
 	int err;
@@ -788,10 +874,6 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	 */
 	if (prev && prev->vm_end == addr &&
   			mpol_equal(vma_policy(prev), policy) &&
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT_END
-			have_equal_vip_flags(prev, next) && //vipzone: check to make sure we don't merge high and low power areas
-#endif
 			can_vma_merge_after(prev, vm_flags,
 						anon_vma, file, pgoff)) {
 		/*
@@ -800,10 +882,6 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 
 		if (next && end == next->vm_start &&
 				mpol_equal(policy, vma_policy(next)) &&
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT_END
-			have_equal_vip_flags(prev, next) && //vipzone: check to make sure we don't merge high and low power areas
-#endif
 				can_vma_merge_before(next, vm_flags,
 					anon_vma, file, pgoff+pglen) &&
 				is_mergeable_anon_vma(prev->anon_vma,
@@ -825,10 +903,6 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	 */
 	if (next && end == next->vm_start &&
  			mpol_equal(policy, vma_policy(next)) &&
-//vipzone
-#ifdef CONFIG_VIPZONE_FRONT_END
-			have_equal_vip_flags(prev, next) && //vipzone: check to make sure we don't merge high and low power areas
-#endif
 			can_vma_merge_before(next, vm_flags,
 					anon_vma, file, pgoff+pglen)) {
 		if (prev && addr < prev->vm_end)	/* case 4 */
@@ -844,6 +918,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	}
 
 	return NULL;
+#endif
 }
 
 /*
@@ -1110,17 +1185,8 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	struct inode *inode;
 	vm_flags_t vm_flags;
 	int error;
-	//int order = 0;
 	unsigned long reqprot = prot;
-	//unsigned long *pages_start;
-	
-	
-	//Danny: lock the vm space?
-	//flags = flags | VM_LOCKED;
 
-	/* from upper level call */
-	//flags = rflags & ~(MAP_EXECUTABLE | MAP_DENYWRITE); //Danny
-	
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC?
 	 *
@@ -1131,32 +1197,37 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
 			prot |= PROT_EXEC;
 
-	if (!len)
-		return -EINVAL; //vipzone: bad argument
+	if (!len) {
+		printk(KERN_WARNING "<vipzone> -EINVAL at do_vip_mmap_pgoff() [1]\n");
+		return -EINVAL;
+	}
 
 	if (!(flags & MAP_FIXED))
 		addr = round_hint_to_min(addr);
 
 	/* Careful about overflows.. */
 	len = PAGE_ALIGN(len);
-	if (!len)
-		return -ENOMEM; //vipzone: couldn't page align, no memory mapped
+	if (!len) {
+		printk(KERN_WARNING "<vipzone> -ENOMEM at do_vip_mmap_pgoff() [1]\n");
+		return -ENOMEM;
+	}
 
 	/* offset overflow? */
 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
-		return -EOVERFLOW; //vipzone: overflow
+               return -EOVERFLOW;
 
 	/* Too many mappings? */
-	/* Need to modify this in case we exceed the number of allowed mappings */
-	if (mm->map_count > sysctl_max_map_count)
+	if (mm->map_count > sysctl_max_map_count) {
+		printk(KERN_WARNING "<vipzone> -ENOMEM at do_vip_mmap_pgoff() [2]\n");
 		return -ENOMEM;
+	}
 
 	/* Obtain the address to map to. we verify (or select) it and ensure
 	 * that it represents a valid section of the address space.
 	 */
 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
 	if (addr & ~PAGE_MASK)
-		return addr; //vipzone: previously mapped area?
+		return addr;
 
 	/* Do simple checking here so the lower-level routines won't have
 	 * to. we assume access permissions have been handled by the open
@@ -1164,14 +1235,12 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	 */
 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
-			
-			
-	//Danny: lock the vm space so it is not swapped
-	//vm_flags = vm_flags | VM_LOCKED;
 
 	if (flags & MAP_LOCKED)
-		if (!can_do_mlock())
-			return -EPERM; //vipzone: couldn't permanently map
+		if (!can_do_mlock()) {
+			printk(KERN_WARNING "<vipzone> -EPERM at do_vip_mmap_pgoff() [1]\n");
+			return -EPERM;
+		}
 
 	/* mlock MCL_FUTURE? */
 	if (vm_flags & VM_LOCKED) {
@@ -1180,8 +1249,10 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 		locked += mm->locked_vm;
 		lock_limit = rlimit(RLIMIT_MEMLOCK);
 		lock_limit >>= PAGE_SHIFT;
-		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
-			return -EAGAIN; //vipzone: try again?
+		if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
+			printk(KERN_WARNING "<vipzone> -EAGAIN at do_vip_mmap_pgoff() [1]\n");
+			return -EAGAIN;
+		}
 	}
 
 	inode = file ? file->f_path.dentry->d_inode : NULL;
@@ -1189,21 +1260,27 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	if (file) {
 		switch (flags & MAP_TYPE) {
 		case MAP_SHARED:
-			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
+			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE)) {
+				printk(KERN_WARNING "<vipzone> -EACCES at do_vip_mmap_pgoff() [1]\n");
 				return -EACCES;
+			}
 
 			/*
 			 * Make sure we don't allow writing to an append-only
 			 * file..
 			 */
-			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
+			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE)) {
+				printk(KERN_WARNING "<vipzone> -EACCES at do_vip_mmap_pgoff() [2]\n");
 				return -EACCES;
+			}
 
 			/*
 			 * Make sure there are no mandatory locks on the file.
 			 */
-			if (locks_verify_locked(inode))
+			if (locks_verify_locked(inode)) {
+				printk(KERN_WARNING "<vipzone> -EAGAIN at do_vip_mmap_pgoff() [2]\n");
 				return -EAGAIN;
+			}
 
 			vm_flags |= VM_SHARED | VM_MAYSHARE;
 			if (!(file->f_mode & FMODE_WRITE))
@@ -1211,22 +1288,29 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 
 			/* fall through */
 		case MAP_PRIVATE:
-			if (!(file->f_mode & FMODE_READ))
+			if (!(file->f_mode & FMODE_READ)) {
+				printk(KERN_WARNING "<vipzone> -EACCES at do_vip_mmap_pgoff() [3]\n");
 				return -EACCES;
+			}
 			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
-				if (vm_flags & VM_EXEC)
+				if (vm_flags & VM_EXEC) {
+					printk(KERN_WARNING "<vipzone> -EPERM at do_vip_mmap_pgoff() [2]\n");
 					return -EPERM;
+				}
 				vm_flags &= ~VM_MAYEXEC;
 			}
 
-			if (!file->f_op || !file->f_op->mmap)
+			if (!file->f_op || !file->f_op->mmap) {
+				printk(KERN_WARNING "<vipzone> -ENODEV at do_vip_mmap_pgoff() [1]\n");
 				return -ENODEV;
+			}
 			break;
 
-		default:
+		default: 
+			printk(KERN_WARNING "<vipzone> -EINVAL at do_vip_mmap_pgoff() [2]\n");
 			return -EINVAL;
 		}
-	} else { //vipzone: Not a file
+	} else {
 		switch (flags & MAP_TYPE) {
 		case MAP_SHARED:
 			/*
@@ -1242,6 +1326,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			pgoff = addr >> PAGE_SHIFT;
 			break;
 		default:
+			printk(KERN_WARNING "<vipzone> -EINVAL at do_vip_mmap_pgoff() [3]\n");
 			return -EINVAL;
 		}
 	}
@@ -1249,14 +1334,6 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	error = security_file_mmap(file, reqprot, prot, flags, addr, 0);
 	if (error)
 		return error;
-
-	//Danny...
-	//page_cnt = len/PAGE_SIZE;
-	//size = PAGE_ALIGN(size);
-	
-	
-	//addr = (unsigned long)pages_start;
-	//pgoff = ((unsigned long)pages_start)>>(unsigned long)PAGE_SHIFT;
 
 	return vip_mmap_region(file, addr, len, flags, vm_flags, pgoff);
 }
@@ -1312,8 +1389,8 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
 	unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
-	struct user_struct *user = NULL;
 
+/*
 	printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
 	if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_READ)
 		printk(KERN_INFO "... vip_flags shows READ mode\n");
@@ -1327,23 +1404,19 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	else if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_HI)
 		printk(KERN_INFO "... vip_flags shows HI mode\n");
 	else
-		printk(KERN_INFO "... vip_flags shows UNDEFINED util mode\n");
+		printk(KERN_INFO "... vip_flags shows UNDEFINED util mode\n"); */
 
-	
-	// we assume all mappings here are anonymous
-	//   we will need to optimize this part
-	//   also, no map huge tlb support for now
-//#if 0
 	if (!(flags & MAP_ANONYMOUS)) {
-		
 		audit_mmap_fd(fd, flags);
-		if (unlikely(flags & MAP_HUGETLB))
-			return -EINVAL; //invalid argument
+		if (unlikely(flags & MAP_HUGETLB)) {
+			printk(KERN_WARNING "<vipzone> -EINVAL at sys_vip_mmap_pgoff() [1]\n"); //vipzone temp
+			return -EINVAL; 
+		}
 		file = fget(fd);
 		if (!file)
-			return -EBADF; //bad file
+			goto out;
 	} else if (flags & MAP_HUGETLB) {
-		
+		struct user_struct *user = NULL;
 		/*
 		 * VM_NORESERVE is used because the reservations will be
 		 * taken when vm_ops->mmap() is called
@@ -1356,18 +1429,18 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 		if (IS_ERR(file))
 			return PTR_ERR(file);
 	}
-//#endif
 
-	// we need to do this mapping within do_vip_mmap_pgoff
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE); //Turn off executable and non-writeable flags if they were passed
-	
-	down_write(&current->mm->mmap_sem); //Lock the semaphore for writing
-	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, pgoff); //do the real mmap work
-	up_write(&current->mm->mmap_sem); //Unlock the semaphore
+	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
-	if (file) //file cleanup
+	down_write(&current->mm->mmap_sem);
+	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, pgoff);
+	up_write(&current->mm->mmap_sem);
+
+	if (file)
 		fput(file);
-	
+out:
+	if (retval == -EBADF)
+		printk(KERN_WARNING "<vipzone> -EBADF at sys_vip_mmap_pgoff() [1]\n"); //vipzone temp
 	return retval;
 }
 #endif
@@ -1616,20 +1689,26 @@ unsigned long vip_mmap_region(struct file *file, unsigned long addr,
 	unsigned long charged = 0;
 	struct inode *inode =  file ? file->f_path.dentry->d_inode : NULL;
 
+	unsigned long vip_flags = flags & _VIP_MASK; //vipzone
+
 	/* Clear old maps */
 	error = -ENOMEM;
 munmap_back:
 
 	vma = find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
 	if (vma && vma->vm_start < addr + len) {
-		if (do_munmap(mm, addr, len))
+		if (do_munmap(mm, addr, len)) {
+			printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [1]\n"); //vipzone temp
 			return -ENOMEM;
+		}
 		goto munmap_back;
 	}
 	
 	/* Check against address space limit. */
-	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
+	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
+		printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [2]\n"); //vipzone temp
 		return -ENOMEM;
+	}
 
 	/*
 	 * Set 'VM_NORESERVE' if we should not account for the
@@ -1650,15 +1729,17 @@ munmap_back:
 	 */
 	if (accountable_mapping(file, vm_flags)) {
 		charged = len >> PAGE_SHIFT;
-		if (security_vm_enough_memory(charged))
+		if (security_vm_enough_memory(charged)) {
+			printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [3]\n"); //vipzone temp
 			return -ENOMEM;
+		}
 		vm_flags |= VM_ACCOUNT;
 	}
 
 	/*
 	 * Can we just expand an old mapping?
 	 */
-	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
+	vma = vma_merge_vipzone(mm, prev, addr, addr + len, vm_flags, vip_flags, NULL, file, pgoff, NULL); //vipzone
 	if (vma) 
 		goto out;
 
@@ -1669,11 +1750,10 @@ munmap_back:
 	 */
 	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma) {
+		printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [4]\n"); //vipzone temp
 		error = -ENOMEM;
 		goto unacct_error;
 	}
-
-	printk(KERN_INFO "<vipzone> vip_mmap_region(): Setting up a new vma object, putting our vip_flags in\n");
 
 	vma->vm_mm = mm;
 	vma->vm_start = addr;
@@ -1686,6 +1766,7 @@ munmap_back:
 
 	if (file) {
 		error = -EINVAL;
+		printk(KERN_WARNING "<vipzone> -EINVAL at vip_mmap_region() [1]\n"); //vipzone temp
 		if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
 			goto free_vma;
 		if (vm_flags & VM_DENYWRITE) {

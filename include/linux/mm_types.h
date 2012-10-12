@@ -214,7 +214,6 @@ struct vm_area_struct {
 	
 	//Variation-aware flags, set by vip_mmap() from userspace. We can't use vm_flags because all the bits are already used for other functions.
    unsigned long vip_flags;
-	unsigned long vip_touched;
 #endif
 
 	struct rb_node vm_rb;

@@ -102,9 +102,9 @@ SYSCALL_DEFINE6(vip_mmap, unsigned long, addr, unsigned long, len,
 {
 	unsigned long vip_flags = flags & _VIP_MASK;
 
-	printk(KERN_INFO "<vipzone> vip_mmap syscall: Hello from the kernel...\n");
+	//printk(KERN_INFO "<vipzone> vip_mmap syscall: Hello from the kernel...\n");
 
-if (off & ~PAGE_MASK)
+	if (off & ~PAGE_MASK)
 		return -EINVAL;
 
 	return sys_vip_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
