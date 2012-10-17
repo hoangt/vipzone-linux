@@ -100,7 +100,7 @@ SYSCALL_DEFINE6(vip_mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags, //vip_flags are embedded in flags
 		unsigned long, fd, unsigned long, off)
 {
-	unsigned long vip_flags = flags & _VIP_MASK;
+	//unsigned long vip_flags = flags & _VIP_MASK;
 
 	//printk(KERN_INFO "<vipzone> vip_mmap syscall: Hello from the kernel...\n");
 
@@ -145,6 +145,9 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	unsigned long start_addr;
 	unsigned long begin, end;
 
+	int vip_tmp_count1 = 0; //vipzone
+	int vip_tmp_count2 = 0;
+
 	if (flags & MAP_FIXED)
 		return addr;
 
@@ -171,10 +174,11 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	start_addr = addr;
 
 full_search:
-
+	vip_tmp_count1++;
 	addr = align_addr(addr, filp, 0);
 
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
+		vip_tmp_count2++;
 		/* At this point:  (!vma || addr < vma->vm_end). */
 		if (end - len < addr) {
 			/*
@@ -186,6 +190,7 @@ full_search:
 				mm->cached_hole_size = 0;
 				goto full_search;
 			}
+			printk(KERN_WARNING "<vipzone> arch_get_unmapped_area in x86(): ENOMEM \n...vma = %lu, end = %lu, len = %lu, addr = %lu, start_addr = %lu, begin = %lu\n...vip_tmp_count1 = %d, vip_tmp_count2 = %d", vma, end, len, addr, start_addr, begin, vip_tmp_count1, vip_tmp_count2);
 			return -ENOMEM;
 		}
 		if (!vma || addr + len <= vma->vm_start) {

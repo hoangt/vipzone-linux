@@ -1197,35 +1197,29 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
 			prot |= PROT_EXEC;
 
-	if (!len) {
-		printk(KERN_WARNING "<vipzone> -EINVAL at do_vip_mmap_pgoff() [1]\n");
+	if (!len)
 		return -EINVAL;
-	}
 
 	if (!(flags & MAP_FIXED))
 		addr = round_hint_to_min(addr);
 
 	/* Careful about overflows.. */
 	len = PAGE_ALIGN(len);
-	if (!len) {
-		printk(KERN_WARNING "<vipzone> -ENOMEM at do_vip_mmap_pgoff() [1]\n");
+	if (!len)
 		return -ENOMEM;
-	}
 
 	/* offset overflow? */
 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
                return -EOVERFLOW;
 
 	/* Too many mappings? */
-	if (mm->map_count > sysctl_max_map_count) {
-		printk(KERN_WARNING "<vipzone> -ENOMEM at do_vip_mmap_pgoff() [2]\n");
+	if (mm->map_count > sysctl_max_map_count)
 		return -ENOMEM;
-	}
 
 	/* Obtain the address to map to. we verify (or select) it and ensure
 	 * that it represents a valid section of the address space.
 	 */
-	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+	addr = get_unmapped_area(file, addr, len, pgoff, flags); //vipzone: we get the error from arch_get_unmapped_area() in arch/x86/kernel/sys_x86_64.c
 	if (addr & ~PAGE_MASK)
 		return addr;
 
@@ -1237,10 +1231,8 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 
 	if (flags & MAP_LOCKED)
-		if (!can_do_mlock()) {
-			printk(KERN_WARNING "<vipzone> -EPERM at do_vip_mmap_pgoff() [1]\n");
+		if (!can_do_mlock())
 			return -EPERM;
-		}
 
 	/* mlock MCL_FUTURE? */
 	if (vm_flags & VM_LOCKED) {
@@ -1249,10 +1241,8 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 		locked += mm->locked_vm;
 		lock_limit = rlimit(RLIMIT_MEMLOCK);
 		lock_limit >>= PAGE_SHIFT;
-		if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
-			printk(KERN_WARNING "<vipzone> -EAGAIN at do_vip_mmap_pgoff() [1]\n");
+		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
 			return -EAGAIN;
-		}
 	}
 
 	inode = file ? file->f_path.dentry->d_inode : NULL;
@@ -1260,27 +1250,21 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	if (file) {
 		switch (flags & MAP_TYPE) {
 		case MAP_SHARED:
-			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE)) {
-				printk(KERN_WARNING "<vipzone> -EACCES at do_vip_mmap_pgoff() [1]\n");
+			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE)) 
 				return -EACCES;
-			}
 
 			/*
 			 * Make sure we don't allow writing to an append-only
 			 * file..
 			 */
-			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE)) {
-				printk(KERN_WARNING "<vipzone> -EACCES at do_vip_mmap_pgoff() [2]\n");
+			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
 				return -EACCES;
-			}
 
 			/*
 			 * Make sure there are no mandatory locks on the file.
 			 */
-			if (locks_verify_locked(inode)) {
-				printk(KERN_WARNING "<vipzone> -EAGAIN at do_vip_mmap_pgoff() [2]\n");
+			if (locks_verify_locked(inode))
 				return -EAGAIN;
-			}
 
 			vm_flags |= VM_SHARED | VM_MAYSHARE;
 			if (!(file->f_mode & FMODE_WRITE))
@@ -1288,26 +1272,19 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 
 			/* fall through */
 		case MAP_PRIVATE:
-			if (!(file->f_mode & FMODE_READ)) {
-				printk(KERN_WARNING "<vipzone> -EACCES at do_vip_mmap_pgoff() [3]\n");
+			if (!(file->f_mode & FMODE_READ))
 				return -EACCES;
-			}
 			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
-				if (vm_flags & VM_EXEC) {
-					printk(KERN_WARNING "<vipzone> -EPERM at do_vip_mmap_pgoff() [2]\n");
+				if (vm_flags & VM_EXEC)
 					return -EPERM;
-				}
 				vm_flags &= ~VM_MAYEXEC;
 			}
 
-			if (!file->f_op || !file->f_op->mmap) {
-				printk(KERN_WARNING "<vipzone> -ENODEV at do_vip_mmap_pgoff() [1]\n");
+			if (!file->f_op || !file->f_op->mmap)
 				return -ENODEV;
-			}
 			break;
 
 		default: 
-			printk(KERN_WARNING "<vipzone> -EINVAL at do_vip_mmap_pgoff() [2]\n");
 			return -EINVAL;
 		}
 	} else {
@@ -1326,7 +1303,6 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			pgoff = addr >> PAGE_SHIFT;
 			break;
 		default:
-			printk(KERN_WARNING "<vipzone> -EINVAL at do_vip_mmap_pgoff() [3]\n");
 			return -EINVAL;
 		}
 	}
@@ -1408,10 +1384,8 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 
 	if (!(flags & MAP_ANONYMOUS)) {
 		audit_mmap_fd(fd, flags);
-		if (unlikely(flags & MAP_HUGETLB)) {
-			printk(KERN_WARNING "<vipzone> -EINVAL at sys_vip_mmap_pgoff() [1]\n"); //vipzone temp
+		if (unlikely(flags & MAP_HUGETLB))
 			return -EINVAL; 
-		}
 		file = fget(fd);
 		if (!file)
 			goto out;
@@ -1439,8 +1413,16 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	if (file)
 		fput(file);
 out:
+	if (retval == -ENOMEM)
+		printk(KERN_WARNING "<vipzone> ERROR -ENOMEM at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
 	if (retval == -EBADF)
-		printk(KERN_WARNING "<vipzone> -EBADF at sys_vip_mmap_pgoff() [1]\n"); //vipzone temp
+		printk(KERN_WARNING "<vipzone> ERROR -EBADF at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+	if (retval == -EINVAL)
+		printk(KERN_WARNING "<vipzone> ERROR -EINVAL at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+	if (retval == -EAGAIN)
+		printk(KERN_WARNING "<vipzone> ERROR -EAGAIN at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+	if (retval == -EPERM)
+		printk(KERN_WARNING "<vipzone> ERROR -EPERM at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
 	return retval;
 }
 #endif
@@ -1589,6 +1571,9 @@ munmap_back:
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
+#ifdef CONFIG_VIPZONE_FRONT_END
+	vma->vip_flags = _VIP_TYP_READ | _VIP_UTIL_LO;
+#endif
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
@@ -1697,18 +1682,14 @@ munmap_back:
 
 	vma = find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
 	if (vma && vma->vm_start < addr + len) {
-		if (do_munmap(mm, addr, len)) {
-			printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [1]\n"); //vipzone temp
+		if (do_munmap(mm, addr, len))
 			return -ENOMEM;
-		}
 		goto munmap_back;
 	}
 	
 	/* Check against address space limit. */
-	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
-		printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [2]\n"); //vipzone temp
+	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
 		return -ENOMEM;
-	}
 
 	/*
 	 * Set 'VM_NORESERVE' if we should not account for the
@@ -1729,10 +1710,8 @@ munmap_back:
 	 */
 	if (accountable_mapping(file, vm_flags)) {
 		charged = len >> PAGE_SHIFT;
-		if (security_vm_enough_memory(charged)) {
-			printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [3]\n"); //vipzone temp
+		if (security_vm_enough_memory(charged))
 			return -ENOMEM;
-		}
 		vm_flags |= VM_ACCOUNT;
 	}
 
@@ -1750,7 +1729,6 @@ munmap_back:
 	 */
 	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (!vma) {
-		printk(KERN_WARNING "<vipzone> -ENOMEM at vip_mmap_region() [4]\n"); //vipzone temp
 		error = -ENOMEM;
 		goto unacct_error;
 	}
@@ -1766,7 +1744,6 @@ munmap_back:
 
 	if (file) {
 		error = -EINVAL;
-		printk(KERN_WARNING "<vipzone> -EINVAL at vip_mmap_region() [1]\n"); //vipzone temp
 		if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
 			goto free_vma;
 		if (vm_flags & VM_DENYWRITE) {
@@ -1868,12 +1845,10 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_area_struct *vma;
 	unsigned long start_addr;
 	
-	printk("arch_get_unmapped_area: inside area looking for %lu to %lu\n", addr, addr+len);
-
 	if (len > TASK_SIZE)
 		return -ENOMEM;
 
-	if (flags & MAP_FIXED)
+	if (flags & MAP_FIXED) 
 		return addr;
 
 	if (addr) {
@@ -1904,6 +1879,7 @@ full_search:
 				mm->cached_hole_size = 0;
 				goto full_search;
 			}
+			printk(KERN_WARNING "<vipzone> arch_get_unmapped_area() in mm/mmap.c: ENOMEM #1\n");
 			return -ENOMEM;
 		}
 		if (!vma || addr + len <= vma->vm_start) {
@@ -1945,8 +1921,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = addr0;
 
-	 printk("arch_get_unmapped_area_topdown: inside area looking for %lu to %lu\n", addr, addr+len);
-	 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
 		return -ENOMEM;
@@ -2045,6 +2019,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 				  unsigned long, unsigned long, unsigned long);
 
 	unsigned long error = arch_mmap_check(addr, len, flags);
+
 	if (error)
 		return error;
 
@@ -2061,6 +2036,7 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 
 	if (addr > TASK_SIZE - len)
 		return -ENOMEM;
+	
 	if (addr & ~PAGE_MASK)
 		return -EINVAL;
 
@@ -2893,6 +2869,10 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			new_vma->vm_start = addr;
 			new_vma->vm_end = addr + len;
 			new_vma->vm_pgoff = pgoff;
+#ifdef CONFIG_VIPZONE_FRONT_END //vipzone
+
+			new_vma->vip_flags = vma->vip_flags;
+#endif
 			if (new_vma->vm_file) {
 				get_file(new_vma->vm_file);
 				if (vma->vm_flags & VM_EXECUTABLE)

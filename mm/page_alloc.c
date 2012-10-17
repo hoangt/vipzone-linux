@@ -3073,8 +3073,12 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 		//if (vma->vip_touched == 1)
 			//printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): we were able to get the vip_flags from vip_mmap! vip_flags == %lu\n", vip_flags);
 	}
-	else
-		vip_flags = _VIP_TYP_READ | _VIP_UTIL_LO; //default flag values
+	else {
+		if (gfp_mask & GFP_KERNEL)
+			vip_flags = _VIP_TYP_READ | _VIP_UTIL_HI; //help out the kernel with low power space
+		else
+			vip_flags = _VIP_TYP_READ | _VIP_UTIL_LO; //default flag values
+	}
 
 	/*
 	 * Check the zones suitable for the gfp_mask contain at least one
