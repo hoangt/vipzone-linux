@@ -670,13 +670,17 @@ void __init paging_init(void)
 	for (i = 0; i < CONFIG_MAX_NR_VIPZONES; i++) {
 		if (i < nr_dimms) { //in the usable range
 			/*** ADD CUSTOM WRITE ZONE ORDERING HERE ***/
-			__dimm_write_zone_ordering[i] = ZONE1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
+			__dimm_write_zone_ordering[i] = ZONE1+i; //First DIMM --> 2nd DIMM --> ... --> Max DIMM.
+			//__dimm_write_zone_ordering[i] = ZONE1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
 			/*** ADD CUSTOM READ ZONE ORDERING HERE ***/
-			__dimm_read_zone_ordering[i] = ZONE1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
+			__dimm_read_zone_ordering[i] = ZONE1+i; //First DIMM --> 2nd DIMM --> ... --> Max DIMM.
+			//__dimm_read_zone_ordering[i] = ZONE1+nr_dimms-1-i; //Max DIMM --> 2nd max DIMM --> 3rd ... --> First DIMM.
 		}
 		else {
-			__dimm_write_zone_ordering[i] = ZONE1; //We can support more DIMMs than present. For these slots, just put the lowest DIMM. Note that this *should* not be checked, this is for safety.
-			__dimm_read_zone_ordering[i] = ZONE1; 
+			//__dimm_write_zone_ordering[i] = ZONE1; //We can support more DIMMs than present. For these slots, just put the lowest DIMM. Note that this *should* not be checked, this is for safety.
+			//__dimm_read_zone_ordering[i] = ZONE1; 
+			__dimm_write_zone_ordering[i] = ZONE1+nr_dimms-1; 
+			__dimm_read_zone_ordering[i] = ZONE1+nr_dimms-1; 
 		}
 	}
 #else
