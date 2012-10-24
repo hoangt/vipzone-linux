@@ -102,7 +102,20 @@ SYSCALL_DEFINE6(vip_mmap, unsigned long, addr, unsigned long, len,
 {
 	//unsigned long vip_flags = flags & _VIP_MASK;
 
-	//printk(KERN_INFO "<vipzone> vip_mmap syscall: Hello from the kernel...\n");
+	/*printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
+	if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_READ)
+		printk(KERN_INFO "... vip_flags shows READ mode\n");
+	else if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_WRITE)
+		printk(KERN_INFO "... vip_flags shows WRITE mode\n");
+	else
+		printk(KERN_INFO "... vip_flags shows UNDEFINED type mode\n");
+
+	if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_LO)
+		printk(KERN_INFO "... vip_flags shows LO mode\n");
+	else if ((vip_flags & _VIP_UTIL_MASK) == _VIP_UTIL_HI)
+		printk(KERN_INFO "... vip_flags shows HI mode\n");
+	else
+		printk(KERN_INFO "... vip_flags shows UNDEFINED util mode\n"); */
 
 	if (off & ~PAGE_MASK)
 		return -EINVAL;

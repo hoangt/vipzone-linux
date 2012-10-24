@@ -393,6 +393,8 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 						}
 					
 					return emptiest_zone;
+		#else
+			#error No ViPZonE back-end lo-mode configured.
 		#endif
 	#endif
 #endif
@@ -426,6 +428,8 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 						}
 
 					return emptiest_zone;
+		#else
+			#error No ViPZonE back-end lo-mode configured.
 		#endif
 	#endif
 #endif
@@ -3051,11 +3055,12 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 			struct zonelist *zonelist, nodemask_t *nodemask)
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+	struct zoneref *preferred_zoneref = NULL;
 	struct zone *preferred_zone = NULL;
 	struct zone *finalZone = NULL; 
 	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
-	//static unsigned long iter = 0;
+	static unsigned long iter = 0;
 	unsigned long vip_flags = 0;
 
 	gfp_mask &= gfp_allowed_mask;
@@ -3068,11 +3073,8 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 		return NULL;
 
 	//Extract vip_flags from the vma if given
-	if (vma) {
+	if (vma)
 		vip_flags = vma->vip_flags;
-		//if (vma->vip_touched == 1)
-			//printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): we were able to get the vip_flags from vip_mmap! vip_flags == %lu\n", vip_flags);
-	}
 	else {
 		if (gfp_mask & GFP_KERNEL)
 			vip_flags = _VIP_TYP_READ | _VIP_UTIL_HI; //help out the kernel with low power space
@@ -3095,9 +3097,11 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	#ifdef CONFIG_ZONE_DMA
 	if (high_zoneidx == ZONE_DMA && (gfp_mask & __GFP_DMA)) { //If we need DMA...
 		//preferred_zone = zonelist->_zonerefs[ZONE_DMA].zone;
-		preferred_zone = (vipzone_choose(vip_flags, NEED_DMA, high_zoneidx, 0))->zone;
-
-		if (unlikely(!preferred_zone)) {
+		preferred_zoneref = vipzone_choose(vip_flags, NEED_DMA, high_zoneidx, 0);
+		
+		if (likely(preferred_zoneref))
+			preferred_zone = preferred_zoneref->zone;
+		else { //Problem
 			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): DMA request did not find a preferred DIMM zone!\n");
 			put_mems_allowed();
 			return NULL;
@@ -3106,10 +3110,12 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	#endif
 
 	#ifdef CONFIG_ZONE_DMA32
-	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32) && likely(preferred_zone == NULL)) { //If we need DMA32...
-		preferred_zone = (vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, 0))->zone;
+	if (high_zoneidx == max_dimm_zone_for_dma32 && (gfp_mask & __GFP_DMA32) && likely(!preferred_zoneref)) { //If we need DMA32...
+		preferred_zoneref = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, 0);
 		
-		if (unlikely(!preferred_zone)) { //No DMA32 match, this is a bug
+		if (likely(preferred_zoneref))
+			preferred_zone = preferred_zoneref->zone;
+		else { //Problem
 			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): DMA32 request did not find a preferred DIMM zone!\n");
 			put_mems_allowed();
 			return NULL;
@@ -3118,14 +3124,16 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	#endif
 
 	//Here, we usually don't have DMA/DMA32 allocations. This is the standard allocator, now.
-	if (likely(!preferred_zone))
-		preferred_zone = (vipzone_choose(vip_flags, NO_NEED_DMA_DMA32, high_zoneidx, 0))->zone;
-
-	//If we don't have a preferred zone at this point, that's definitely a problem.
-	if (unlikely(!preferred_zone)) {
-		printk(KERN_WARNING "<vipzone> __alloc_pages_nodemask_vipzone(): vipzone was unable to locate a preferred zone. This allocation failed to get pages! vip_flags == %lu\n", vip_flags);
-		put_mems_allowed();
-		return NULL;
+	if (likely(!preferred_zoneref)) {
+		preferred_zoneref = vipzone_choose(vip_flags, NO_NEED_DMA_DMA32, high_zoneidx, 0);
+		
+		if (likely(preferred_zoneref))
+			preferred_zone = preferred_zoneref->zone;
+		else { //Problem
+			printk(KERN_DEBUG "<vipzone> __alloc_pages_nodemask_vipzone(): vipzone was unable to locate a preferred zone. This allocation failed to get pages! vip_flags == %lu\n", vip_flags);
+			put_mems_allowed();
+			return NULL;
+		}
 	}
 
 	/* First allocation attempt */
@@ -3141,15 +3149,15 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 
-/*
-	if (iter % 50000 == 0 && preferred_zone && finalZone) {
-		printk(KERN_DEBUG "<vipzone> Finished 50k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
+
+	if (iter % 10000 == 0 && preferred_zone && finalZone) {
+		printk(KERN_DEBUG "<vipzone> Finished 10k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
 		if (gfp_mask & __GFP_DMA)
 			printk(KERN_DEBUG "<vipzone> ----- This last page was a DMA request.\n");
 		if (gfp_mask & __GFP_DMA32)
 			printk(KERN_DEBUG "<vipzone> ----- This last page was a DMA32 request.\n");
-	}*/
-	//iter++;
+	}
+	iter++;
 	
 	return page;
 }

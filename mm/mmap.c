@@ -1364,7 +1364,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
-	unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
+	//unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
 
 /*
 	printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
@@ -1414,15 +1414,15 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 		fput(file);
 out:
 	if (retval == -ENOMEM)
-		printk(KERN_WARNING "<vipzone> ERROR -ENOMEM at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+		printk(KERN_WARNING "<vipzone> ERROR -ENOMEM at sys_vip_mmap_pgoff()\n"); //vipzone temp
 	if (retval == -EBADF)
-		printk(KERN_WARNING "<vipzone> ERROR -EBADF at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+		printk(KERN_WARNING "<vipzone> ERROR -EBADF at sys_vip_mmap_pgoff()\n"); //vipzone temp
 	if (retval == -EINVAL)
-		printk(KERN_WARNING "<vipzone> ERROR -EINVAL at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+		printk(KERN_WARNING "<vipzone> ERROR -EINVAL at sys_vip_mmap_pgoff()\n"); //vipzone temp
 	if (retval == -EAGAIN)
-		printk(KERN_WARNING "<vipzone> ERROR -EAGAIN at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+		printk(KERN_WARNING "<vipzone> ERROR -EAGAIN at sys_vip_mmap_pgoff()\n"); //vipzone temp
 	if (retval == -EPERM)
-		printk(KERN_WARNING "<vipzone> ERROR -EPERM at sys_vip_mmap_pgoff()\n", retval); //vipzone temp
+		printk(KERN_WARNING "<vipzone> ERROR -EPERM at sys_vip_mmap_pgoff()\n"); //vipzone temp
 	return retval;
 }
 #endif
