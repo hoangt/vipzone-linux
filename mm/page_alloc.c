@@ -436,7 +436,9 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 					break;
 			}
 	}
-	
+
+	printk(KERN_WARNING "<vipzone> vipzone_choose() is returning NULL! This is bad, we couldn't pick a zone.\n");
+	printk(KERN_WARNING "... vip_flags == %lu, dma_dma32_needed == %d, high_zoneidx == %u, startingRank == %d\n", vip_flags, dma_dma32_needed, high_zoneidx, startingRank);
 	return NULL; //OUT OF LUCK!
 }
 #endif
@@ -1904,13 +1906,13 @@ zonelist_scan:
 	//vipzone
 	for (zone_index = 0; zone_index < nr_dimms; zone_index++) {
 		z = NULL; //use as a flag
-#ifdef CONFIG_DMA32
-		if ((gfp_mask & __GFP_DMA32)) 
-			z = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, zone_index);
-#endif
 #ifdef CONFIG_DMA
-		if ((gfp_mask & __GFP_DMA) && likely(!z)) 
+		if ((gfp_mask & __GFP_DMA)) 
 			z = vipzone_choose(vip_flags, NEED_DMA, high_zoneidx, zone_index);
+#endif
+#ifdef CONFIG_DMA32
+		if ((gfp_mask & __GFP_DMA32) && likely(!z)) 
+			z = vipzone_choose(vip_flags, NEED_DMA32, high_zoneidx, zone_index);
 #endif
 
 		if (likely(!z)) 
@@ -1934,7 +1936,8 @@ zonelist_scan:
 		if (likely(z))
 			zone = z->zone;
 		else {
-			printk(KERN_WARNING "<vipzone> get_page_from_freelist_vipzone(): zoneref z was NULL! This is bad, we couldn't find a zone. Returning NULL for page.\n");
+			printk(KERN_WARNING "<vipzone> get_page_from_freelist_vipzone(): zoneref z was NULL! This is bad. Returning NULL for page!\n");
+			printk(KERN_WARNING "... vip_flags == %lu, high_zoneidx == %d, zone_index == %d\n", vip_flags, high_zoneidx, zone_index);
 			return NULL; 
 		}
 
@@ -3060,7 +3063,7 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 	struct zone *finalZone = NULL; 
 	struct page *page = NULL;
 	int migratetype = allocflags_to_migratetype(gfp_mask);
-	static unsigned long iter = 0;
+	//static unsigned long iter = 0;
 	unsigned long vip_flags = 0;
 
 	gfp_mask &= gfp_allowed_mask;
@@ -3149,7 +3152,7 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 
-
+/*
 	if (iter % 10000 == 0 && preferred_zone && finalZone) {
 		printk(KERN_DEBUG "<vipzone> Finished 10k alloc_pages() iterations, this one had preferred zone of %s, and final zone was %s.\n", preferred_zone->name, finalZone->name);
 		if (gfp_mask & __GFP_DMA)
@@ -3157,7 +3160,7 @@ __alloc_pages_nodemask_vipzone(gfp_t gfp_mask, unsigned int order, struct vm_are
 		if (gfp_mask & __GFP_DMA32)
 			printk(KERN_DEBUG "<vipzone> ----- This last page was a DMA32 request.\n");
 	}
-	iter++;
+	iter++;*/
 	
 	return page;
 }

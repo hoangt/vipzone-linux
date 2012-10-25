@@ -270,8 +270,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	if (flags & __GFP_DMA32) //Check for DMA32 request
 		return max_dimm_zone_for_dma32;
 	#endif
-	
-	return __dimm_write_zone_ordering[0]; //vipzone: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
+
+	return nr_dimms-1+ZONE1; //vipzone: max DIMM zone
+	//return __dimm_write_zone_ordering[0]; //vipzone: Placeholder -- always choose highest priority DIMM first. With current strategy, this will be the max DIMM number present.
 #else	
 	return (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
 					 ((1 << ZONES_SHIFT) - 1);
