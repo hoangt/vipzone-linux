@@ -1179,7 +1179,7 @@ EXPORT_SYMBOL(do_mmap_pgoff);
 #ifdef CONFIG_VIPZONE_FRONT_END
 unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 			unsigned long len, unsigned long prot,
-			unsigned long flags, unsigned long pgoff)
+			unsigned long flags, unsigned long vip_flags, unsigned long pgoff)
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
@@ -1311,7 +1311,7 @@ unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	if (error)
 		return error;
 
-	return vip_mmap_region(file, addr, len, flags, vm_flags, pgoff);
+	return vip_mmap_region(file, addr, len, flags, vip_flags, vm_flags, pgoff);
 }
 EXPORT_SYMBOL(do_vip_mmap_pgoff);
 #endif
@@ -1364,10 +1364,10 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 {
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
-	//unsigned long vip_flags = flags & _VIP_MASK; //Extract vip_flags 
+	
+	unsigned long vip_flags = prot & _VIP_MASK; //Extract vip_flags. They piggy-back on prot flags, because there's no room in the flags parameter
 
-/*
-	printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
+	/*printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
 	if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_READ)
 		printk(KERN_INFO "... vip_flags shows READ mode\n");
 	else if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_WRITE)
@@ -1407,7 +1407,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 
 	down_write(&current->mm->mmap_sem);
-	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, pgoff);
+	retval = do_vip_mmap_pgoff(file, addr, len, prot, flags, vip_flags, pgoff);
 	up_write(&current->mm->mmap_sem);
 
 	if (file)
@@ -1663,7 +1663,7 @@ unacct_error:
 //vipzone
 #ifdef CONFIG_VIPZONE_FRONT_END
 unsigned long vip_mmap_region(struct file *file, unsigned long addr,
-			  unsigned long len, unsigned long flags,
+			  unsigned long len, unsigned long flags, unsigned long vip_flags,
 			  vm_flags_t vm_flags, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
@@ -1674,7 +1674,7 @@ unsigned long vip_mmap_region(struct file *file, unsigned long addr,
 	unsigned long charged = 0;
 	struct inode *inode =  file ? file->f_path.dentry->d_inode : NULL;
 
-	unsigned long vip_flags = flags & _VIP_MASK; //vipzone
+	//unsigned long vip_flags = flags & _VIP_MASK; //vipzone
 
 	/* Clear old maps */
 	error = -ENOMEM;
@@ -1737,7 +1737,7 @@ munmap_back:
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
-	vma->vip_flags = flags & _VIP_MASK; //vipzone: set the vip_flags in the vma
+	vma->vip_flags = vip_flags; //vipzone: set the vip_flags in the vma
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
 	INIT_LIST_HEAD(&vma->anon_vma_chain);
@@ -1879,7 +1879,6 @@ full_search:
 				mm->cached_hole_size = 0;
 				goto full_search;
 			}
-			printk(KERN_WARNING "<vipzone> arch_get_unmapped_area() in mm/mmap.c: ENOMEM #1\n");
 			return -ENOMEM;
 		}
 		if (!vma || addr + len <= vma->vm_start) {

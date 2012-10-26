@@ -1409,14 +1409,12 @@ extern unsigned long get_vip_unmapped_area(struct file *, unsigned long,
 										   unsigned long, unsigned long);
 */
 
-//vip_flag embedded in flag
 extern unsigned long do_vip_mmap_pgoff(struct file *file, unsigned long addr,
 	unsigned long len, unsigned long prot,
-	unsigned long flag, unsigned long pgoff);
+	unsigned long flag, unsigned long vip_flags, unsigned long pgoff);
 
-//vip_flags embedded in flags
 extern unsigned long vip_mmap_region(struct file *file, unsigned long addr,
-			  unsigned long len, unsigned long flags,
+			  unsigned long len, unsigned long flags, unsigned long vip_flags,
 			  vm_flags_t vm_flags, unsigned long pgoff);
 
 extern int have_equal_vip_flags(struct vm_area_struct *vma, unsigned long vip_flags); //vipzone: check for same vip_flags before merging two vmas
