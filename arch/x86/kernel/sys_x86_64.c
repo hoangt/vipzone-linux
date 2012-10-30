@@ -97,7 +97,7 @@ out:
 
 #ifdef CONFIG_VIPZONE_FRONT_END
 SYSCALL_DEFINE6(vip_mmap, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags, //vip_flags are embedded in flags
+		unsigned long, prot, unsigned long, flags, //vip_flags are embedded in prot
 		unsigned long, fd, unsigned long, off)
 {
 	//unsigned long vip_flags = flags & _VIP_MASK;

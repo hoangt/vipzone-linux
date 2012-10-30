@@ -38,6 +38,11 @@
 
 #include "internal.h"
 
+//vipzone
+#ifdef CONFIG_VIPZONE_BACK_END
+#include <linux/vipzone_flags.h>
+#endif
+
 #ifndef arch_mmap_check
 #define arch_mmap_check(addr, len, flags)	(0)
 #endif
@@ -1367,7 +1372,7 @@ SYSCALL_DEFINE6(vip_mmap_pgoff, unsigned long, addr, unsigned long, len,
 	
 	unsigned long vip_flags = prot & _VIP_MASK; //Extract vip_flags. They piggy-back on prot flags, because there's no room in the flags parameter
 
-	/*printk(KERN_INFO "<vipzone> vip_mmap syscall: flags=0x%lx, extracted vip_flags=0x%lx\n", flags, vip_flags);
+	/*printk(KERN_INFO "<vipzone> vip_mmap syscall: prot=0x%lx, extracted vip_flags=0x%lx\n", prot, vip_flags);
 	if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_READ)
 		printk(KERN_INFO "... vip_flags shows READ mode\n");
 	else if ((vip_flags & _VIP_TYP_MASK) == _VIP_TYP_WRITE)
