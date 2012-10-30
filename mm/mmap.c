@@ -40,7 +40,7 @@
 
 //vipzone
 #ifdef CONFIG_VIPZONE_BACK_END
-#include <linux/vipzone_flags.h>
+#include <linux/vip_flags.h>
 #endif
 
 #ifndef arch_mmap_check

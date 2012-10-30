@@ -63,7 +63,7 @@
 #include "internal.h"
 
 #ifdef CONFIG_VIPZONE_BACK_END
-#include <linux/vipzone_flags.h> //vipzone
+#include <linux/vip_flags.h> //vipzone
 #endif
 
 #ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
