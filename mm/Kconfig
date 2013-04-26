@@ -76,6 +76,13 @@ config VIPZONE_BACK_END_LOMODE_FREESPACE
 
 	  Author: Mark Gottscho <mgottscho@ucla.edu>
 
+config VIPZONE_BACK_END_LOMODE_STATIC_LOWPOWER
+	bool "Static lowest power first"
+	depends on VIPZONE_BACK_END
+	help
+	  All allocations statically prefer lowest power zones. 
+
+	  Author: Mark Gottscho <mgottscho@ucla.edu>
 endchoice
 
 config VIPZONE_FRONT_END 

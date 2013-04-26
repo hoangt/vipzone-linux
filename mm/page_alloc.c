@@ -394,7 +394,11 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 					
 					return emptiest_zone;
 		#else
-			#error No ViPZonE back-end lo-mode configured.
+			#ifdef CONFIG_VIPZONE_BACK_END_LOMODE_STATIC_LOWPOWER
+				return dimm_write_zoneref_list[0]; //always prefer low power zone, no matter what.
+			#else
+				#error No ViPZonE back-end lo-mode configured.
+			#endif
 		#endif
 	#endif
 #endif
@@ -429,7 +433,11 @@ struct zoneref * vipzone_choose(unsigned long vip_flags, int dma_dma32_needed, e
 
 					return emptiest_zone;
 		#else
-			#error No ViPZonE back-end lo-mode configured.
+			#ifdef CONFIG_VIPZONE_BACK_END_LOMODE_STATIC_LOWPOWER
+				return dimm_read_zoneref_list[0]; //always prefer low power zone, no matter what.
+			#else
+				#error No ViPZonE back-end lo-mode configured.
+			#endif
 		#endif
 	#endif
 #endif
